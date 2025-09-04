@@ -32,8 +32,8 @@ class ModelManager:
                     t_gunwen = self.last_heating_t_gunwen
                     self.gui.update_log(f"降温模型使用上一次升温的辊温: {t_gunwen:.4f} K")
                 else:
-                    t_gunwen = 315.1500
-                    self.gui.update_log("警告: 未找到前一个升温模型，降温辊温使用默认值 315.15 K。")
+                    QMessageBox.warning(self.gui, "警告", "必须先添加一个升温模型，才能添加降温模型。")
+                    return
             else:
                 roll_direction = self.gui.roll_direction_combo.currentText()
                 t_gunwen = self.gui.t_gunwen_input.value()
@@ -54,18 +54,26 @@ class ModelManager:
         if self.gui.visualization_manager.visualization_active:
             self.gui.visualization_manager.stop_visualization()
             
-        selected_rows = self.gui.model_table.selectedItems()
-        if not selected_rows:
+        selected_ranges = self.gui.model_table.selectedRanges()
+        if not selected_ranges:
             QMessageBox.warning(self.gui, "警告", "请先选择要删除的模型")
             return
-            
-        row = selected_rows[0].row()
-        model_id_to_delete = int(self.gui.model_table.item(row, 0).text())
-        
-        self.simulation_models.pop(model_id_to_delete - 1)
+
+        rows_to_delete = set()
+        for r in selected_ranges:
+            for i in range(r.topRow(), r.bottomRow() + 1):
+                rows_to_delete.add(i)
+
+        if not rows_to_delete:
+            return
+
+        # 从后往前删除，避免索引错误
+        for row in sorted(list(rows_to_delete), reverse=True):
+            model_id_to_delete = int(self.gui.model_table.item(row, 0).text())
+            self.simulation_models.pop(model_id_to_delete - 1)
+            self.gui.update_log(f"已删除模型 #{model_id_to_delete}")
+
         self._update_model_table()
-            
-        self.gui.update_log(f"已删除模型 #{model_id_to_delete}")
         self.gui.visualization_manager.draw_model_schematic()
     
     def delete_all_models(self):
@@ -112,18 +120,28 @@ class ModelManager:
         try:
             with open(file_path, "r", encoding="utf-8") as f:
                 data_list = json.load(f)
-            if not isinstance(data_list, list):
-                raise ValueError("JSON 格式不正确，应为列表。")
-            self.simulation_models.clear()
-            for item in data_list:
-                model = self._dict_to_model(item)
-                self.simulation_models.append(model)
             
+            if not isinstance(data_list, list):
+                raise ValueError("JSON 文件内容必须是一个列表。")
+
+            new_models = []
+            for i, item in enumerate(data_list):
+                if not isinstance(item, dict):
+                    raise ValueError(f"模型 #{i+1} 的格式不正确，应为字典。")
+                model = self._dict_to_model(item)
+                new_models.append(model)
+
+            self.simulation_models = new_models
             self._update_model_table()
             QMessageBox.information(self.gui, "成功", f"成功加载 {len(self.simulation_models)} 个模型")
             self.gui.visualization_manager.draw_model_schematic()
+
+        except json.JSONDecodeError:
+            QMessageBox.critical(self.gui, "错误", "加载失败：JSON 文件格式错误。")
+        except ValueError as e:
+            QMessageBox.critical(self.gui, "错误", f"加载失败：{e}")
         except Exception as e:
-            QMessageBox.critical(self.gui, "错误", f"加载失败: {e}")
+            QMessageBox.critical(self.gui, "错误", f"加载时发生未知错误: {e}")
 
     def on_model_table_cell_changed(self, row, column):
         """处理模型表格单元格的编辑事件"""
@@ -137,23 +155,26 @@ class ModelManager:
 
         try:
             if column == 1:
-                if new_value in [ScriptType.HEATING, ScriptType.COOLING]:
-                    model.script_type = new_value
-                else: raise ValueError("无效的脚本类型")
+                if new_value not in [ScriptType.HEATING, ScriptType.COOLING]:
+                    raise ValueError("无效的脚本类型")
+                model.script_type = new_value
             elif column == 2:
-                if new_value in [RollDirection.INITIAL, RollDirection.FORWARD, RollDirection.REVERSE, "/"]:
-                    model.roll_direction = new_value if new_value != "/" else RollDirection.INITIAL
-                else: raise ValueError("无效的滚动方向")
+                if new_value not in [RollDirection.INITIAL, RollDirection.FORWARD, RollDirection.REVERSE, "/"]:
+                    raise ValueError("无效的滚动方向")
+                model.roll_direction = new_value if new_value != "/" else RollDirection.INITIAL
             elif column == 3:
-                model.t_gunwen = float(new_value) if new_value != "/" else 315.1500
+                model.T_GunWen = float(new_value) if new_value != "/" else 315.1500
             elif column == 4:
                 model.t_up = float(new_value)
             
             self.gui.update_log(f"模型 #{model_id} 的参数已更新")
-            self._update_model_table() # Refresh the table to ensure consistency
+            self._update_model_table()
 
-        except (ValueError, TypeError) as e:
+        except ValueError as e:
             QMessageBox.warning(self.gui, "输入无效", f"输入的值 '{new_value}' 无效: {e}")
+            self._update_model_table()
+        except TypeError:
+            QMessageBox.warning(self.gui, "输入无效", f"输入的值 '{new_value}' 必须是数字。")
             self._update_model_table()
         
         self.gui.model_table.blockSignals(False)

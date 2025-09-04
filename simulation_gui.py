@@ -316,6 +316,9 @@ class SimulationGUI(QMainWindow):
             QMessageBox.warning(self, "警告", "请先添加至少一个模型")
             return
 
+        if not self._validate_model_sequence():
+            return
+
         # 清除旧的可视化数据
         self.visualization_manager.clear_data()
         self.update_log("已清除旧的可视化数据。")
@@ -639,3 +642,31 @@ class SimulationGUI(QMainWindow):
         self.save_models_button.setEnabled(enabled)
         self.load_models_button.setEnabled(enabled)
         self.model_table.setEnabled(enabled)
+
+    def _validate_model_sequence(self):
+        """校验模型序列是否符合运行要求"""
+        models = self.model_manager.simulation_models
+        if not models:
+            return True  # No models to validate
+
+        # 规则 1: 第一个模型必须是升温初始辊
+        first_model = models[0]
+        if not (first_model.script_type == ScriptType.HEATING and first_model.roll_direction == RollDirection.INITIAL):
+            QMessageBox.warning(self, "模型序列无效", "第一个模型必须是升温初始辊。")
+            return False
+
+        # 规则 2 & 3: 不能有两个连续的升温模型，两个升温之间必须有降温
+        for i in range(len(models) - 1):
+            current_model = models[i]
+            next_model = models[i+1]
+            if current_model.script_type == ScriptType.HEATING and next_model.script_type == ScriptType.HEATING:
+                QMessageBox.warning(self, "模型序列无效", f"模型 #{i+1} 和 #{i+2} 不能连续为两个升温模型。")
+                return False
+
+        # 规则 4: 除了第一个模型，其余的升温模型不能是初始辊
+        for i, model in enumerate(models[1:], start=2):
+            if model.script_type == ScriptType.HEATING and model.roll_direction == RollDirection.INITIAL:
+                QMessageBox.warning(self, "模型序列无效", f"升温模型 #{i} 不能是初始辊。")
+                return False
+        
+        return True

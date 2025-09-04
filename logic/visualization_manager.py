@@ -20,19 +20,6 @@ from PyQt6.QtWidgets import (
 from .Models import ScriptType, RollDirection
 from .plot_utils import get_combined_contour_data
 
-class NumpyArrayEncoder(json.JSONEncoder):
-    """Custom JSON encoder for NumPy arrays."""
-    def default(self, obj):
-        if isinstance(obj, np.ndarray):
-            return {"__ndarray__": obj.tolist()}
-        return json.JSONEncoder.default(self, obj)
-
-def json_numpy_obj_hook(dct):
-    """Decodes a previously encoded numpy ndarray from a JSON object."""
-    if isinstance(dct, dict) and '__ndarray__' in dct:
-        data = np.asarray(dct['__ndarray__'])
-        return data
-    return dct
 
 class VisualizationManager:
     """Manages all visualization-related functionalities for the Simulation GUI."""
@@ -555,12 +542,12 @@ class VisualizationManager:
         self.gradient_canvas.draw()
 
     def save_visualization_state(self, key=None):
-        """Saves the current simulation results to a JSON file."""
+        """Saves the current simulation results to a pickle file."""
         if not self.gui.simulation_step_results:
             QMessageBox.warning(self.gui, "警告", "没有可保存的结果。")
             return
 
-        file_path, _ = QFileDialog.getSaveFileName(self.gui, "保存仿真结果", "simulation_results.json", "JSON Files (*.json)")
+        file_path, _ = QFileDialog.getSaveFileName(self.gui, "保存仿真结果", "simulation_results.pkl", "Pickle Files (*.pkl)")
         if not file_path:
             return
 
@@ -576,21 +563,21 @@ class VisualizationManager:
             state["temperature_curve_data"] = temperature_data
 
         try:
-            with open(file_path, "w", encoding="utf-8") as f:
-                json.dump(state, f, cls=NumpyArrayEncoder, ensure_ascii=False, indent=4)
+            with open(file_path, "wb") as f:
+                pickle.dump(state, f)
             QMessageBox.information(self.gui, "成功", f"仿真结果已保存到 {file_path}")
         except Exception as e:
             QMessageBox.critical(self.gui, "错误", f"保存失败: {e}")
 
     def load_visualization_state(self):
-        """Loads simulation results from a JSON file."""
-        file_path, _ = QFileDialog.getOpenFileName(self.gui, "加载仿真结果", "", "JSON Files (*.json)")
+        """Loads simulation results from a pickle file."""
+        file_path, _ = QFileDialog.getOpenFileName(self.gui, "加载仿真结果", "", "Pickle Files (*.pkl)")
         if not file_path:
             return
 
         try:
-            with open(file_path, "r", encoding="utf-8") as f:
-                state = json.load(f, object_hook=json_numpy_obj_hook)
+            with open(file_path, "rb") as f:
+                state = pickle.load(f)
             
             self.clear_data()
 
