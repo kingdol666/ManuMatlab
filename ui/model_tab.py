@@ -3,7 +3,7 @@ from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QGroupBox, QFormLayout, QComboBox, QDoubleSpinBox,
     QPushButton, QTableWidget, QHeaderView, QHBoxLayout, QLabel
 )
-from Models import ScriptType, RollDirection
+from logic.Models import ScriptType, RollDirection
 from .delegates import ModelDelegate
 
 def create_model_tab(main_window):
@@ -52,7 +52,7 @@ def create_model_tab(main_window):
     
     instruction_label = QLabel("注意：第一个模型必须是正向初始辊")
     instruction_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignBottom)
-    instruction_label.setStyleSheet("color: #888; font-size: 12px; margin-top: 10px;")
+    instruction_label.setStyleSheet("color: #000; font-size: 12px; margin-top: 10px;")
     
     left_layout.addWidget(main_window.model_config_group)
     left_layout.addWidget(main_window.add_model_button)
@@ -92,7 +92,7 @@ def create_model_tab(main_window):
 
     instruction_label_2 = QLabel("双击可以修改模型参数")
     instruction_label_2.setAlignment(Qt.AlignmentFlag.AlignRight)
-    instruction_label_2.setStyleSheet("color: #888;")
+    instruction_label_2.setStyleSheet("color: #000; font-size: 14px; margin-top: 10px;")
     table_layout.addWidget(instruction_label_2)
     
     delete_row_widget = QWidget()

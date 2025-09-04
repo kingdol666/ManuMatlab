@@ -8,7 +8,7 @@ from matplotlib.figure import Figure
 from matplotlib.patches import Rectangle, Circle
 import matplotlib.pyplot as plt
 import numpy as np
-from Models import ScriptType, RollDirection
+from logic.Models import ScriptType, RollDirection
 
 def create_visualization_tab(main_window):
     """创建运行可视化选项卡"""

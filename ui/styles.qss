@@ -302,7 +302,7 @@ QPushButton#resetButton:pressed {
 
 /* Modern Semi-Transparent Input Control Styles with Glass Effect */
 /* Enhanced Input Components - Better Accessibility & Modern Design */
-QTextEdit, QLineEdit, QDoubleSpinBox, QComboBox {
+QTextEdit, QLineEdit, QDoubleSpinBox, QComboBox, QSpinBox {
     background: qlineargradient(x1:0, y1:0, x2:0, y2:1, 
         stop:0 rgba(255, 255, 255, 0.75), 
         stop:1 rgba(248, 250, 252, 0.75));
@@ -317,6 +317,30 @@ QTextEdit, QLineEdit, QDoubleSpinBox, QComboBox {
     min-height: 20px;
     selection-background-color: rgba(59, 130, 246, 0.25);
     selection-color: #ffffff;
+}
+
+QDoubleSpinBox::up-button, QSpinBox::up-button {
+    subcontrol-origin: border;
+    subcontrol-position: top right;
+    width: 20px;
+    height: 20px;
+    image: url(public/images/up.png);
+    background: transparent;
+    border: none;
+    right: 5px;
+    top: 4px;
+}
+
+QDoubleSpinBox::down-button, QSpinBox::down-button {
+    subcontrol-origin: border;
+    subcontrol-position: bottom right;
+    width: 20px;
+    height: 20px;
+    image: url(public/images/down.png);
+    background: transparent;
+    border: none;
+    right: 5px;
+    bottom: 4px;
 }
 
 /* Enhanced Focus & Hover States for Better UX */
@@ -346,10 +370,9 @@ QComboBox::drop-down {
 }
 
 QComboBox::down-arrow {
+    image: url(public/images/select.png);
     width: 14px;
     height: 14px;
-    background: rgba(59, 130, 246, 0.8);
-    border-radius: 2px;
 }
 
 /* Enhanced Table Styles - Improved Data Readability */
@@ -590,16 +613,15 @@ QCheckBox {
 QCheckBox::indicator {
     width: 22px;
     height: 22px;
-    border: 2px solid rgba(59, 130, 246, 0.8);
-    border-radius: 8px;
-    background-color: rgba(255, 255, 255, 0.9);
+    image: url(public/images/uncheck.png);
+    border: none;
+    background-color: transparent;
 }
 
 QCheckBox::indicator:checked {
-    background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
-        stop:0 rgba(59, 130, 246, 0.8), stop:1 rgba(37, 99, 235, 0.8));
-    border: 2px solid rgba(37, 99, 235, 0.8);
-    image: url(e:/MatlabSpace/纵拉预热/PythonCode/ui/public/images/check.png);
+    background: transparent;
+    border: none;
+    image: url(public/images/check.png);
 }
 
 QCheckBox::indicator:hover {
@@ -930,41 +952,3 @@ QWidget#gradient_canvas, QWidget#temperature_curve_canvas, QWidget#chart_canvas 
     margin: 8px;
     padding: 12px;
 }
-
-
-</final_file_content>
-
-IMPORTANT: For any future changes to this file, use the final_file_content shown above as your reference. This content reflects the current state of the file, including any auto-formatting (e.g., if you used single quotes but the formatter converted them to double quotes). Always base your SEARCH/REPLACE operations on this final version to ensure accuracy.
-
-<environment_details>
-# VSCode Visible Files
-纵拉预热/PythonCode/run_gui.py
-纵拉预热/PythonCode/ui/model_tab.py
-
-# VSCode Open Tabs
-纵拉预热/PythonCode/run_gui.py
-纵拉预热/PythonCode/simulation_gui.py
-纵拉预热/PythonCode/logic/plot_utils.py
-纵拉预热/PythonCode/ui/model_tab.py
-纵拉预热/PythonCode/threads/simulation_thread.py
-纵拉预热/PythonCode/run_matlab_simulation.py
-纵拉预热/PythonCode/ui/run_tab.py
-纵拉预热/PythonCode/logic/model_manager.py
-纵拉预热/PythonCode/logic/visualization_manager.py
-纵拉预热/PythonCode/ui/public/images/background1.png
-纵拉预热/PythonCode/ui/styles.qss
-纵拉预热/PythonCode/ui/result_tab.py
-纵拉预热/PythonCode/ui/help_tab.py
-纵拉预热/PythonCode/README.md
-纵拉预热/PythonCode/ui/visualization_tab.py
-纵拉预热/PythonCode/threads/visualization_worker.py
-
-# Current Time
-2025/9/4 上午10:58:04 (Asia/Shanghai, UTC+8:00)
-
-# Context Window Usage
-344,516 / 1,048.576K tokens used (33%)
-
-# Current Mode
-ACT MODE
-</environment_details>

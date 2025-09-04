@@ -29,11 +29,15 @@ from config.paths import (
     get_logo_file,
     get_temp_matlab_dir,
     get_background_image_file,
-    get_check_image_file
+    get_check_image_file,
+    get_select_image_file,
+    get_up_arrow_image_file,
+    get_down_arrow_image_file,
+    get_uncheck_image_file
 )
-from Models import ScriptType, RollDirection, SimulationModel
+from logic.Models import ScriptType, RollDirection, SimulationModel
 from threads.simulation_thread import SimulationThread
-from run_matlab_simulation import stop_all_matlab_engines, load_config
+from logic.run_matlab_simulation import stop_all_matlab_engines, load_config
 from ui.config_tab import create_config_tab
 from ui.model_tab import create_model_tab
 from ui.run_tab import create_run_tab
@@ -157,6 +161,22 @@ class SimulationGUI(QMainWindow):
             stylesheet = stylesheet.replace(
                 "url(public/images/check.png)",
                 f"url({get_check_image_file()})"
+            )
+            stylesheet = stylesheet.replace(
+                "url(public/images/select.png)",
+                f"url({get_select_image_file()})"
+            )
+            stylesheet = stylesheet.replace(
+                "url(public/images/up.png)",
+                f"url({get_up_arrow_image_file()})"
+            )
+            stylesheet = stylesheet.replace(
+                "url(public/images/down.png)",
+                f"url({get_down_arrow_image_file()})"
+            )
+            stylesheet = stylesheet.replace(
+                "url(public/images/uncheck.png)",
+                f"url({get_uncheck_image_file()})"
             )
             self.setStyleSheet(stylesheet)
         

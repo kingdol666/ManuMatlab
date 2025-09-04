@@ -1,5 +1,5 @@
 import os
-from utils import resolve_path
+from .utils import resolve_path
 
 # All paths are relative to the project root
 
@@ -8,7 +8,11 @@ STYLES_FILE = "ui/styles.qss"
 ICON_FILE = "ui/public/images/icon.png"
 LOGO_FILE = "ui/public/images/logo.svg"
 BACKGROUND_IMAGE_FILE = "ui/public/images/background1.png"
-CHECK_IMAGE_FILE = "ui/public/images/check.png"
+CHECK_IMAGE_FILE = "ui/public/images/QtIcon/check.png"
+SELECT_IMAGE_FILE = "ui/public/images/QtIcon/select.png"
+UP_ARROW_IMAGE_FILE = "ui/public/images/QtIcon/up.png"
+DOWN_ARROW_IMAGE_FILE = "ui/public/images/QtIcon/down.png"
+UNCHECK_IMAGE_FILE = "ui/public/images/QtIcon/uncheck.png"
 TEMP_MATLAB_DIR = "temp_matlab"
 MATLAB_SCRIPTS_DIR = "matlabScripts"
 
@@ -31,6 +35,22 @@ def get_background_image_file():
 def get_check_image_file():
     # Use forward slashes for CSS/QSS paths
     return resolve_path(CHECK_IMAGE_FILE).replace('\\', '/')
+
+def get_select_image_file():
+    # Use forward slashes for CSS/QSS paths
+    return resolve_path(SELECT_IMAGE_FILE).replace('\\', '/')
+
+def get_up_arrow_image_file():
+    # Use forward slashes for CSS/QSS paths
+    return resolve_path(UP_ARROW_IMAGE_FILE).replace('\\', '/')
+
+def get_down_arrow_image_file():
+    # Use forward slashes for CSS/QSS paths
+    return resolve_path(DOWN_ARROW_IMAGE_FILE).replace('\\', '/')
+
+def get_uncheck_image_file():
+    # Use forward slashes for CSS/QSS paths
+    return resolve_path(UNCHECK_IMAGE_FILE).replace('\\', '/')
 
 def get_temp_matlab_dir():
     return resolve_path(TEMP_MATLAB_DIR)

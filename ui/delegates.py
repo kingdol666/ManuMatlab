@@ -1,5 +1,5 @@
 from PyQt6.QtWidgets import QStyledItemDelegate, QComboBox
-from Models import RollDirection, ScriptType
+from logic.Models import RollDirection, ScriptType
 
 class ModelDelegate(QStyledItemDelegate):
     def __init__(self, parent=None):

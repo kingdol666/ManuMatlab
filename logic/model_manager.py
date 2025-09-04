@@ -1,7 +1,7 @@
 import json
 from PyQt6.QtWidgets import QFileDialog, QMessageBox, QTableWidgetItem
 from PyQt6.QtCore import Qt
-from Models import ScriptType, RollDirection, SimulationModel
+from .Models import ScriptType, RollDirection, SimulationModel
 
 class ModelManager:
     def __init__(self, gui):

@@ -2,8 +2,8 @@ import os
 from PyQt6.QtCore import QThread, pyqtSignal
 import numpy as np
 
-from Models import ScriptType, RollDirection
-from run_matlab_simulation import run_matlab_script, load_config, start_shared_engine, stop_shared_engine
+from logic.Models import ScriptType, RollDirection
+from logic.run_matlab_simulation import run_matlab_script, load_config, start_shared_engine, stop_shared_engine
 from config.paths import get_matlab_scripts_dir
 
 class InterruptedError(Exception):

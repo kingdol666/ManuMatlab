@@ -17,7 +17,7 @@ from PyQt6.QtWidgets import (
 )
 
 # Project module imports
-from Models import ScriptType, RollDirection
+from .Models import ScriptType, RollDirection
 from .plot_utils import get_combined_contour_data
 
 class NumpyArrayEncoder(json.JSONEncoder):
