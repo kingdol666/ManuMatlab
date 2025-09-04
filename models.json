@@ -1,0 +1,32 @@
+[
+  {
+    "script_type": "升温",
+    "roll_direction": "初始辊",
+    "T_GunWen": 350.0,
+    "t_up": 0.8
+  },
+  {
+    "script_type": "降温",
+    "roll_direction": "初始辊",
+    "T_GunWen": 350.0,
+    "t_up": 1.2
+  },
+  {
+    "script_type": "升温",
+    "roll_direction": "正向辊",
+    "T_GunWen": 360.0,
+    "t_up": 1.2
+  },
+  {
+    "script_type": "降温",
+    "roll_direction": "初始辊",
+    "T_GunWen": 360.0,
+    "t_up": 1.2
+  },
+  {
+    "script_type": "升温",
+    "roll_direction": "逆向辊",
+    "T_GunWen": 360.0,
+    "t_up": 0.8
+  }
+]

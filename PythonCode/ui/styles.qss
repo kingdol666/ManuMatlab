@@ -1,0 +1,970 @@
+/* Enhanced Glass Morphism Style - Optimized Typography & Accessibility */
+QMainWindow#MainWindow {
+    /* 毛玻璃背景效果 - Enhanced contrast for better readability */
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
+        stop:0 rgba(255, 255, 255, 0.35),
+        stop:0.3 rgba(236, 244, 255, 0.40),
+        stop:0.6 rgba(209, 229, 255, 0.45),
+        stop:1 rgba(186, 219, 255, 0.38));
+    /* Enhanced font stack for better cross-platform compatibility */
+    font-family: "Inter", "SF Pro Display", "Segoe UI Variable", "Microsoft YaHei UI", "PingFang SC", "Helvetica Neue", Arial, sans-serif;
+    font-size: 14px;
+    font-weight: 400;
+    color: #0f172a;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    border-radius: 20px;
+}
+
+QMainWindow {
+    /* 背景图片设置 */
+    border-image: url(e:/MatlabSpace/纵拉预热/PythonCode/ui/public/images/background1.png) 0 0 0 0 stretch stretch;
+    /* 毛玻璃主背景叠加层 */
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
+        stop:0 rgba(255, 255, 255, 0.08), 
+        stop:0.3 rgba(240, 248, 255, 0.12), 
+        stop:0.7 rgba(219, 234, 254, 0.15), 
+        stop:1 rgba(186, 230, 253, 0.08));
+    border-radius: 24px;
+}
+
+/* Add a style for responsive image widgets, assuming they are QLabels with a specific object name */
+QLabel#responsiveImage {
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: contain; /* or 'cover' depending on desired effect */
+    border: none;
+}
+
+
+QDialog {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
+        stop:0 rgba(255, 255, 255, 0.85), 
+        stop:0.5 rgba(248, 250, 252, 0.90), 
+        stop:1 rgba(241, 245, 249, 0.85));
+    font-family: "Inter", "SF Pro Display", "Segoe UI Variable", "Microsoft YaHei UI", "PingFang SC", "Helvetica Neue", Arial, sans-serif;
+    font-size: 14px;
+    font-weight: 400;
+    color: #0f172a;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-radius: 24px;
+}
+
+/* Modern Semi-Transparent Tab Styles with Glass Effect */
+QTabWidget::pane {
+    border: none;
+    border-radius: 20px;
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
+        stop:0 rgba(255, 255, 255, 0.45), stop:0.5 rgba(248, 250, 252, 0.45), stop:1 rgba(241, 245, 249, 0.45));
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    margin-top: 12px;
+}
+
+QTabBar::tab {
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+        stop:0 rgba(248, 250, 252, 0.45), stop:1 rgba(241, 245, 249, 0.45));
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-bottom: none;
+    padding: 12px 20px;
+    border-top-left-radius: 16px;
+    border-top-right-radius: 16px;
+    color:rgb(48, 48, 52);
+    font-weight: 600;
+    font-size: 14px;
+    margin-right: 4px;
+    min-width: 100px;
+}
+
+QTabBar::tab:selected {
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+        stop:0 rgba(255, 255, 255, 0.55), stop:1 rgba(248, 250, 252, 0.55));
+    border: 1px solid rgba(59, 130, 246, 0.6);
+    color: #1e40af;
+    border-bottom: 3px solid rgba(59, 130, 246, 0.6);
+}
+
+QTabBar::tab:hover {
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+        stop:0 rgba(239, 246, 255, 0.50), stop:1 rgba(219, 234, 254, 0.50));
+    color: #2563eb;
+    border-color: rgba(59, 130, 246, 0.4);
+}
+
+/* Modern Semi-Transparent GroupBox Styles with Glass Effect */
+QGroupBox {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
+        stop:0 rgba(255, 255, 255, 0.30), stop:0.5 rgba(248, 250, 252, 0.30), stop:1 rgba(241, 245, 249, 0.30));
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 20px;
+    margin-top: 24px;
+    padding: 20px;
+    font-weight: 500;
+}
+
+QGroupBox::title {
+    subcontrol-origin: margin;
+    subcontrol-position: top left;
+    padding: 10px 16px;
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
+        stop:0 rgba(219, 234, 254, 0.4), stop:1 rgba(186, 230, 253, 0.4));
+    border: 1px solid rgba(59, 130, 246, 0.5);
+    color: #1e40af;
+    font-size: 15px;
+    font-weight: 700;
+    border-radius: 12px;
+    left: 20px;
+    top: 0px;
+}
+
+/* Modern Semi-Transparent Button Styles with Glass Effect */
+QPushButton {
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+        stop:0 rgba(99, 102, 241, 0.65),
+        stop:0.5 rgba(79, 70, 229, 0.65),
+        stop:1 rgba(67, 56, 202, 0.65));
+    color: white;
+    border: 1px solid rgba(255, 255, 255, 0.6);
+    padding: 6px 12px;
+    margin: 4px;
+    border-radius: 14px;
+    font-size: 14px;
+    font-weight: 600;
+    min-width: 150px;
+    max-width: 150px;
+    min-height: 36px;
+    max-height: 36px;
+    width: 150px;
+    height: 36px;
+}
+
+QPushButton:hover {
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+        stop:0 rgba(37, 99, 235, 0.75), stop:0.5 rgba(29, 78, 216, 0.75), stop:1 rgba(30, 64, 175, 0.75));
+    border: 1px solid rgba(255, 255, 255, 0.7);
+    /* 悬停时保持一致尺寸 */
+    min-width: 150px;
+    max-width: 150px;
+    min-height: 36px;
+    max-height: 36px;
+    width: 150px;
+    height: 36px;
+}
+
+QPushButton:pressed {
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+        stop:0 rgba(30, 64, 175, 0.85), stop:0.5 rgba(30, 58, 138, 0.85), stop:1 rgba(30, 58, 138, 0.85));
+    border: 1px solid rgba(255, 255, 255, 0.8);
+    /* 按下时保持一致尺寸 */
+    min-width: 150px;
+    max-width: 150px;
+    min-height: 36px;
+    max-height: 36px;
+    width: 150px;
+    height: 36px;
+}
+
+/* Semi-Transparent Primary Button Styles with Glass Effect */
+QPushButton#primaryButton {
+    background: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,
+                                stop: 0 rgba(5, 150, 105, 0.65), stop: 1 rgba(4, 120, 87, 0.65));
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    color: white;
+    font-weight: 700;
+    padding: 6px 12px;
+    margin: 4px;
+    border-radius: 12px;
+    font-size: 14px;
+    /* 统一按钮尺寸 */
+    min-width: 150px;
+    max-width: 150px;
+    min-height: 36px;
+    max-height: 36px;
+    width: 150px;
+    height: 36px;
+}
+
+QPushButton#primaryButton:hover {
+    background: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,
+                                stop: 0 rgba(4, 120, 87, 0.75), stop: 1 rgba(6, 95, 70, 0.75));
+    border: 1px solid rgba(255, 255, 255, 0.6);
+    /* 悬停时保持一致尺寸 */
+    min-width: 150px;
+    max-width: 150px;
+    min-height: 36px;
+    max-height: 36px;
+    width: 150px;
+    height: 36px;
+}
+
+QPushButton#primaryButton:pressed {
+    background: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,
+                                stop: 0 rgba(6, 95, 70, 0.85), stop: 1 rgba(6, 78, 59, 0.85));
+    border: 1px solid rgba(255, 255, 255, 0.7);
+    /* 按下时保持一致尺寸 */
+    min-width: 150px;
+    max-width: 150px;
+    min-height: 36px;
+    max-height: 36px;
+    width: 150px;
+    height: 36px;
+}
+
+/* Semi-Transparent Delete Button Styles with Glass Effect */
+QPushButton#deleteButton {
+    background: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,
+                                stop: 0 rgba(239, 68, 68, 0.65), stop: 1 rgba(220, 38, 38, 0.65));
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    color: white;
+    font-weight: 600;
+    padding: 6px 12px;
+    margin: 4px;
+    border-radius: 12px;
+    font-size: 14px;
+    /* 统一按钮尺寸 */
+    min-width: 150px;
+    max-width: 150px;
+    min-height: 36px;
+    max-height: 36px;
+    width: 150px;
+    height: 36px;
+}
+
+QPushButton#deleteButton:hover {
+    background: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,
+                                stop: 0 rgba(220, 38, 38, 0.75), stop: 1 rgba(185, 28, 28, 0.75));
+    border: 1px solid rgba(255, 255, 255, 0.6);
+    /* 悬停时保持一致尺寸 */
+    min-width: 150px;
+    max-width: 150px;
+    min-height: 36px;
+    max-height: 36px;
+    width: 150px;
+    height: 36px;
+}
+
+QPushButton#deleteButton:pressed {
+    background: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,
+                                stop: 0 rgba(185, 28, 28, 0.85), stop: 1 rgba(153, 27, 27, 0.85));
+    border: 1px solid rgba(255, 255, 255, 0.7);
+    /* 按下时保持一致尺寸 */
+    min-width: 150px;
+    max-width: 150px;
+    min-height: 36px;
+    max-height: 36px;
+    width: 150px;
+    height: 36px;
+}
+
+/* Semi-Transparent Reset Button Styles with Glass Effect */
+QPushButton#resetButton {
+    background: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,
+                                stop: 0 rgba(245, 158, 11, 0.65), stop: 1 rgba(217, 119, 6, 0.65));
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    color: white;
+    font-weight: 600;
+    padding: 6px 12px;
+    margin: 4px;
+    border-radius: 12px;
+    font-size: 14px;
+    /* 统一按钮尺寸 */
+    min-width: 150px;
+    max-width: 150px;
+    min-height: 36px;
+    max-height: 36px;
+    width: 150px;
+    height: 36px;
+}
+
+QPushButton#resetButton:hover {
+    background: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,
+                                stop: 0 rgba(217, 119, 6, 0.75), stop: 1 rgba(180, 83, 9, 0.75));
+    border: 1px solid rgba(255, 255, 255, 0.6);
+    /* 悬停时保持一致尺寸 */
+    min-width: 150px;
+    max-width: 150px;
+    min-height: 36px;
+    max-height: 36px;
+    width: 150px;
+    height: 36px;
+}
+
+QPushButton#resetButton:pressed {
+    background: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,
+                                stop: 0 rgba(180, 83, 9, 0.85), stop: 1 rgba(146, 64, 14, 0.85));
+    border: 1px solid rgba(255, 255, 255, 0.7);
+    /* 按下时保持一致尺寸 */
+    min-width: 150px;
+    max-width: 150px;
+    min-height: 36px;
+    max-height: 36px;
+    width: 150px;
+    height: 36px;
+}
+
+/* Modern Semi-Transparent Input Control Styles with Glass Effect */
+/* Enhanced Input Components - Better Accessibility & Modern Design */
+QTextEdit, QLineEdit, QDoubleSpinBox, QComboBox {
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1, 
+        stop:0 rgba(255, 255, 255, 0.75), 
+        stop:1 rgba(248, 250, 252, 0.75));
+    border: 2px solid rgba(203, 213, 225, 0.6);
+    border-radius: 12px;
+    padding: 12px 16px;
+    font-family: "Inter", "SF Pro Display", "Segoe UI Variable", "Microsoft YaHei UI", "PingFang SC", "Helvetica Neue", Arial, sans-serif;
+    font-size: 14px;
+    font-weight: 400;
+    color: #0f172a;
+    min-width: 200px;
+    min-height: 20px;
+    selection-background-color: rgba(59, 130, 246, 0.25);
+    selection-color: #ffffff;
+}
+
+/* Enhanced Focus & Hover States for Better UX */
+QTextEdit:focus, QLineEdit:focus, QDoubleSpinBox:focus, QComboBox:focus {
+    border: 2px solid rgba(59, 130, 246, 0.8);
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1, 
+        stop:0 rgba(255, 255, 255, 0.9), 
+        stop:1 rgba(239, 246, 255, 0.9));
+    outline: none;
+}
+
+QTextEdit:hover, QLineEdit:hover, QDoubleSpinBox:hover, QComboBox:hover {
+    border-color: rgba(59, 130, 246, 0.6);
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1, 
+        stop:0 rgba(255, 255, 255, 0.85), 
+        stop:1 rgba(248, 250, 252, 0.85));
+}
+
+QComboBox::drop-down {
+    border: none;
+    border-left: 2px solid rgba(255, 255, 255, 0.3);
+    width: 36px;
+    border-top-right-radius: 12px;
+    border-bottom-right-radius: 12px;
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+        stop:0 rgba(248, 250, 252, 0.3), stop:1 rgba(241, 245, 249, 0.3));
+}
+
+QComboBox::down-arrow {
+    width: 14px;
+    height: 14px;
+    background: rgba(59, 130, 246, 0.8);
+    border-radius: 2px;
+}
+
+/* Enhanced Table Styles - Improved Data Readability */
+QTableWidget {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:1, 
+        stop:0 rgba(255, 255, 255, 0.85), 
+        stop:1 rgba(248, 250, 252, 0.85));
+    border: 2px solid rgba(203, 213, 225, 0.6);
+    border-radius: 16px;
+    gridline-color: rgba(203, 213, 225, 0.3);
+    font-family: "Inter", "SF Pro Display", "Segoe UI Variable", "Microsoft YaHei UI", "PingFang SC", "Helvetica Neue", Arial, sans-serif;
+    font-size: 14px;
+    font-weight: 400;
+    color: #0f172a;
+    selection-background-color: rgba(59, 130, 246, 0.2);
+    selection-color: #ffffff;
+    alternate-background-color: rgba(248, 250, 252, 0.5);
+}
+
+/* Enhanced Table Header & Cell Styles */
+QHeaderView::section {
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1, 
+        stop:0 rgba(59, 130, 246, 0.12), 
+        stop:1 rgba(59, 130, 246, 0.08));
+    padding: 16px 12px;
+    border: none;
+    border-bottom: 2px solid rgba(59, 130, 246, 0.3);
+    font-family: "Inter", "SF Pro Display", "Segoe UI Variable", "Microsoft YaHei UI", "PingFang SC", "Helvetica Neue", Arial, sans-serif;
+    font-weight: 600;
+    font-size: 14px;
+    color: #1e40af;
+    border-top-left-radius: 14px;
+    border-top-right-radius: 14px;
+}
+
+QTableWidget::item {
+    padding: 16px 12px;
+    background-color: transparent;
+    border-bottom: 1px solid rgba(203, 213, 225, 0.3);
+    font-family: "Inter", "SF Pro Display", "Segoe UI Variable", "Microsoft YaHei UI", "PingFang SC", "Helvetica Neue", Arial, sans-serif;
+    font-size: 14px;
+    font-weight: 400;
+    color: #0f172a;
+}
+
+QTableWidget::item:hover {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:0, 
+        stop:0 rgba(59, 130, 246, 0.1), 
+        stop:1 rgba(59, 130, 246, 0.15));
+    border-radius: 8px;
+    color: #1e40af;
+}
+
+QTableWidget::item:selected {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:0, 
+        stop:0 rgba(59, 130, 246, 0.2), 
+        stop:1 rgba(59, 130, 246, 0.3));
+    color: #ffffff;
+    border-radius: 8px;
+    font-weight: 500;
+}
+
+/* Enhanced Label Styles - Improved Typography Hierarchy */
+QLabel {
+    font-family: "Inter", "SF Pro Display", "Segoe UI Variable", "Microsoft YaHei UI", "PingFang SC", "Helvetica Neue", Arial, sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    color: #0f172a;
+    background-color: transparent;
+}
+
+/* Label hierarchy for better information structure */
+QLabel[class="title"] {
+    font-size: 18px;
+    font-weight: 600;
+    color: #0f172a;
+    margin-bottom: 8px;
+}
+
+QLabel[class="subtitle"] {
+    font-size: 16px;
+    font-weight: 500;
+    color: #334155;
+    margin-bottom: 6px;
+}
+
+QLabel[class="caption"] {
+    font-size: 12px;
+    font-weight: 400;
+    color: #64748b;
+    line-height: 1.3;
+}
+
+QLabel[class="status"] {
+    font-size: 13px;
+    font-weight: 500;
+    padding: 4px 8px;
+    border-radius: 6px;
+    background: rgba(59, 130, 246, 0.1);
+    color: #1e40af;
+}
+
+/* Enhanced Log Text Box */
+QTextEdit#log_text {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:1, 
+        stop:0 rgba(30, 41, 59, 0.95), 
+        stop:1 rgba(15, 23, 42, 0.95));
+    color: #e2e8f0;
+    font-family: "JetBrains Mono", "Consolas", "Fira Code", "Courier New", monospace;
+    border-radius: 16px;
+    border: 2px solid rgba(59, 130, 246, 0.3);
+    padding: 16px;
+    font-size: 13px;
+}
+
+/* Modern Glass ScrollBar */
+QScrollBar:vertical {
+    background: rgba(255, 255, 255, 0.15);
+    width: 10px;
+    margin: 16px 2px 16px 2px;
+    border-radius: 5px;
+}
+QScrollBar::handle:vertical {
+    background: rgba(99, 102, 241, 0.55);
+    min-height: 30px;
+    border-radius: 5px;
+}
+QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+    height: 0px;
+}
+QScrollBar:horizontal {
+    background: rgba(255, 255, 255, 0.15);
+    height: 10px;
+    margin: 2px 16px 2px 16px;
+    border-radius: 5px;
+}
+QScrollBar::handle:horizontal {
+    background: rgba(99, 102, 241, 0.55);
+    min-width: 30px;
+    border-radius: 5px;
+}
+QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
+    width: 0px;
+}
+/* Table Header */
+QHeaderView::section {
+    background: rgba(255, 255, 255, 0.4);
+    padding: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    font-weight: 600;
+}
+
+QScrollBar::handle:vertical:hover {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:0, 
+        stop:0 rgba(59, 130, 246, 0.6), 
+        stop:1 rgba(59, 130, 246, 0.8));
+    width: 14px;
+}
+
+QScrollBar::handle:vertical:pressed {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:0, 
+        stop:0 rgba(59, 130, 246, 0.8), 
+        stop:1 rgba(59, 130, 246, 1.0));
+}
+
+QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+    height: 0px;
+}
+
+QScrollBar:horizontal {
+    background: rgba(248, 250, 252, 0.4);
+    height: 12px;
+    border-radius: 6px;
+    margin: 0;
+    border: 1px solid rgba(203, 213, 225, 0.2);
+    /* Responsive height for different screen sizes */
+    min-height: 8px;
+    max-height: 16px;
+}
+
+QScrollBar::handle:horizontal {
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+        stop:0 rgba(59, 130, 246, 0.4), stop:1 rgba(59, 130, 246, 0.6));
+    border-radius: 6px;
+    min-width: 30px;
+    margin: 1px;
+}
+
+QScrollBar::handle:horizontal:hover {
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1, 
+        stop:0 rgba(59, 130, 246, 0.6), 
+        stop:1 rgba(59, 130, 246, 0.8));
+    height: 14px;
+}
+
+QScrollBar::handle:horizontal:pressed {
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1, 
+        stop:0 rgba(59, 130, 246, 0.8), 
+        stop:1 rgba(59, 130, 246, 1.0));
+}
+
+QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
+    width: 0px;
+}
+
+/* Glass Morphism Progress Bar Styles - QSS Compatible */
+QProgressBar {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+        stop:0 rgba(241, 245, 249, 0.4), 
+        stop:1 rgba(248, 250, 252, 0.45));
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: 16px;
+    text-align: center;
+    font-weight: bold;
+    color: #1e293b;
+    min-height: 32px;
+    font-size: 13px;
+}
+
+QProgressBar::chunk {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:0, 
+        stop:0 rgba(59, 130, 246, 0.8), 
+        stop:0.3 rgba(37, 99, 235, 0.85), 
+        stop:0.7 rgba(29, 78, 216, 0.85),
+        stop:1 rgba(59, 130, 246, 0.8));
+    border-radius: 14px;
+    margin: 2px;
+}
+
+/* Enhanced CheckBox Styles */
+QCheckBox {
+    spacing: 12px;
+    font-size: 14px;
+    color: #1e293b;
+    font-weight: 500;
+}
+
+QCheckBox::indicator {
+    width: 22px;
+    height: 22px;
+    border: 2px solid rgba(59, 130, 246, 0.8);
+    border-radius: 8px;
+    background-color: rgba(255, 255, 255, 0.9);
+}
+
+QCheckBox::indicator:checked {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
+        stop:0 rgba(59, 130, 246, 0.8), stop:1 rgba(37, 99, 235, 0.8));
+    border: 2px solid rgba(37, 99, 235, 0.8);
+    image: url(e:/MatlabSpace/纵拉预热/PythonCode/ui/public/images/check.png);
+}
+
+QCheckBox::indicator:hover {
+    border: 2px solid rgba(37, 99, 235, 0.9);
+}
+
+/* Small Button Styles */
+QPushButton#smallButton {
+    min-width: 80px;
+    max-width: 80px;
+    width: 80px;
+}
+
+QPushButton#smallButton:hover {
+    min-width: 80px;
+    max-width: 80px;
+    width: 80px;
+}
+
+QPushButton#smallButton:pressed {
+    min-width: 80px;
+    max-width: 80px;
+    width: 80px;
+}
+
+/* Enhanced Semi-Transparent Bottom Frame Styles */
+QFrame#bottomFrame {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:0, 
+        stop:0 rgba(248, 250, 252, 0.3), 
+        stop:1 rgba(255, 255, 255, 0.3));
+    border: none;
+    border-top: 2px solid rgba(255, 255, 255, 0.2);
+    border-radius: 0px;
+}
+
+/* Enhanced Author Label Styles */
+QLabel#authorLabel {
+    color: #64748b;
+    background-color: transparent;
+    font-size: 12px;
+    font-weight: 500;
+    padding: 6px 16px;
+    border-radius: 6px;
+    font-family: "Microsoft YaHei UI", "Segoe UI", Arial, sans-serif;
+}
+
+/* Enhanced Semi-Transparent Help Button Styles */
+QPushButton#helpButton {
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1, 
+        stop:0 rgba(99, 102, 241, 0.65), stop:0.5 rgba(79, 70, 229, 0.65), stop:1 rgba(67, 56, 202, 0.65));
+    color: white;
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    border-radius: 12px;
+    font-size: 13px;
+    font-weight: 600;
+    min-width: 110px;
+    max-width: 110px;
+    min-height: 40px;
+    max-height: 40px;
+    width: 110px;
+    height: 40px;
+    margin: 0px;
+    padding: 0px;
+}
+
+QPushButton#helpButton:hover {
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1, 
+        stop:0 rgba(79, 70, 229, 0.75), stop:0.5 rgba(67, 56, 202, 0.75), stop:1 rgba(55, 48, 163, 0.75));
+    border: 1px solid rgba(255, 255, 255, 0.6);
+}
+
+QPushButton#helpButton:pressed {
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1, 
+        stop:0 rgba(67, 56, 202, 0.85), stop:0.5 rgba(55, 48, 163, 0.85), stop:1 rgba(49, 46, 129, 0.85));
+    border: 1px solid rgba(255, 255, 255, 0.7);
+}
+
+/* Semi-Transparent Visualization Tab Styles */
+QWidget#controlPanel {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
+        stop:0 rgba(255, 255, 255, 0.25),
+        stop:0.3 rgba(248, 250, 252, 0.30),
+        stop:0.7 rgba(241, 245, 249, 0.35),
+        stop:1 rgba(236, 244, 255, 0.25));
+    border: 2px solid rgba(255, 255, 255, 0.35);
+    border-radius: 18px;
+    margin: 8px;
+    padding: 16px;
+}
+
+QWidget#visualizationPanel {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
+        stop:0 rgba(255, 255, 255, 0.20),
+        stop:0.3 rgba(248, 250, 252, 0.25),
+        stop:0.7 rgba(241, 245, 249, 0.30),
+        stop:1 rgba(236, 244, 255, 0.20));
+    border: 2px solid rgba(255, 255, 255, 0.30);
+    border-radius: 18px;
+    margin: 8px;
+    padding: 12px;
+}
+
+QWidget#statusWidget {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
+        stop:0 rgba(255, 255, 255, 0.25),
+        stop:0.3 rgba(248, 250, 252, 0.30),
+        stop:0.7 rgba(241, 245, 249, 0.35),
+        stop:1 rgba(236, 244, 255, 0.25));
+    border: 2px solid rgba(255, 255, 255, 0.35);
+    border-radius: 16px;
+    margin: 8px;
+    padding: 12px;
+}
+
+#statusLabel {
+    font-size: 15px;
+    font-weight: 600;
+    color: #34495e;
+}
+
+/* ========== RESPONSIVE DESIGN RULES ========== */
+/* These rules help adapt the UI for different screen sizes */
+
+/* Large screens (1920px and above) - Desktop */
+QWidget[class="large-screen"] {
+    font-size: 16px;
+    padding: 16px;
+    margin: 8px;
+}
+
+QWidget[class="large-screen"] QLabel {
+    font-size: 16px;
+    line-height: 1.6;
+}
+
+QWidget[class="large-screen"] QPushButton {
+    min-height: 48px;
+    font-size: 16px;
+    padding: 12px 24px;
+}
+
+/* Medium screens (1366px - 1919px) - Standard Desktop */
+QWidget[class="medium-screen"] {
+    font-size: 14px;
+    padding: 12px;
+    margin: 6px;
+}
+
+QWidget[class="medium-screen"] QLabel {
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+QWidget[class="medium-screen"] QPushButton {
+    min-height: 40px;
+    font-size: 14px;
+    padding: 10px 20px;
+}
+
+/* Small screens (1024px - 1365px) - Laptop */
+QWidget[class="small-screen"] {
+    font-size: 13px;
+    padding: 10px;
+    margin: 4px;
+}
+
+QWidget[class="small-screen"] QLabel {
+    font-size: 13px;
+    line-height: 1.4;
+}
+
+QWidget[class="small-screen"] QPushButton {
+    min-height: 36px;
+    font-size: 13px;
+    padding: 8px 16px;
+}
+
+/* Extra small screens (below 1024px) - Tablet/Small Laptop */
+QWidget[class="xs-screen"] {
+    font-size: 12px;
+    padding: 8px;
+    margin: 2px;
+}
+
+QWidget[class="xs-screen"] QLabel {
+    font-size: 12px;
+    line-height: 1.3;
+}
+
+QWidget[class="xs-screen"] QPushButton {
+    min-height: 32px;
+    font-size: 12px;
+    padding: 6px 12px;
+}
+
+/* High DPI Display Support */
+QWidget[class="high-dpi"] {
+    /* Increase base sizes for high DPI displays */
+    font-size: 15px;
+}
+
+QWidget[class="high-dpi"] QLabel {
+    font-size: 15px;
+}
+
+QWidget[class="high-dpi"] QPushButton {
+    min-height: 44px;
+    font-size: 15px;
+}
+
+/* Accessibility - Large Text Mode */
+QWidget[class="large-text"] {
+    font-size: 18px;
+}
+
+QWidget[class="large-text"] QLabel {
+    font-size: 18px;
+    line-height: 1.6;
+}
+
+QWidget[class="large-text"] QPushButton {
+    min-height: 52px;
+    font-size: 18px;
+    padding: 14px 28px;
+}
+
+/* Touch-friendly interface for tablet mode */
+QWidget[class="touch-mode"] QPushButton {
+    min-height: 48px;
+    min-width: 48px;
+    padding: 12px;
+    margin: 8px;
+}
+
+QWidget[class="touch-mode"] QComboBox,
+QWidget[class="touch-mode"] QLineEdit,
+QWidget[class="touch-mode"] QTextEdit {
+    min-height: 44px;
+    padding: 12px 16px;
+    font-size: 16px;
+}
+
+/* ========== MODERN LAYOUT IMPROVEMENTS ========== */
+/* Enhanced spacing and alignment for better visual hierarchy */
+
+/* Container spacing */
+QWidget[class="container"] {
+    padding: 24px;
+    margin: 12px;
+}
+
+QWidget[class="card"] {
+    background: rgba(255, 255, 255, 0.8);
+    border: 1px solid rgba(203, 213, 225, 0.4);
+    border-radius: 16px;
+    padding: 20px;
+    margin: 8px;
+}
+
+/* Section headers */
+QWidget[class="section-header"] {
+    border-bottom: 2px solid rgba(59, 130, 246, 0.2);
+    padding-bottom: 12px;
+    margin-bottom: 20px;
+}
+
+QWidget[class="section-header"] QLabel {
+    font-size: 18px;
+    font-weight: 600;
+    color: #1e40af;
+}
+
+/* Speed ComboBox Style */
+QComboBox#speedComboBox {
+    min-width: 80px;
+    max-width: 80px;
+}
+
+/* Modern Semi-Transparent FigureCanvas Styles with Glass Effect */
+QWidget[class="matplotlib.backends.backend_qtagg.FigureCanvasQTAgg"] {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
+        stop:0 rgba(255, 255, 255, 0.35),
+        stop:0.3 rgba(248, 250, 252, 0.40),
+        stop:0.7 rgba(241, 245, 249, 0.45),
+        stop:1 rgba(236, 244, 255, 0.35));
+    border: 2px solid rgba(255, 255, 255, 0.45);
+    border-radius: 18px;
+    margin: 8px;
+    padding: 12px;
+}
+
+/* Alternative FigureCanvas selector for better compatibility */
+FigureCanvasQTAgg {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
+        stop:0 rgba(255, 255, 255, 0.35),
+        stop:0.3 rgba(248, 250, 252, 0.40),
+        stop:0.7 rgba(241, 245, 249, 0.45),
+        stop:1 rgba(236, 244, 255, 0.35));
+    border: 2px solid rgba(255, 255, 255, 0.45);
+    border-radius: 18px;
+    margin: 8px;
+    padding: 12px;
+}
+
+/* Generic matplotlib widget styling */
+QWidget[objectName*="canvas"] {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
+        stop:0 rgba(255, 255, 255, 0.35),
+        stop:0.3 rgba(248, 250, 252, 0.40),
+        stop:0.7 rgba(241, 245, 249, 0.45),
+        stop:1 rgba(236, 244, 255, 0.35));
+    border: 2px solid rgba(255, 255, 255, 0.45);
+    border-radius: 18px;
+    margin: 8px;
+    padding: 12px;
+}
+
+/* Specific canvas styling for visualization components */
+QWidget#live_contour_canvas, QWidget#visualization_canvas, QWidget#canvas, 
+QWidget#gradient_canvas, QWidget#temperature_curve_canvas, QWidget#chart_canvas {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
+        stop:0 rgba(255, 255, 255, 0.35),
+        stop:0.3 rgba(248, 250, 252, 0.40),
+        stop:0.7 rgba(241, 245, 249, 0.45),
+        stop:1 rgba(236, 244, 255, 0.35));
+    border: 2px solid rgba(255, 255, 255, 0.45);
+    border-radius: 18px;
+    margin: 8px;
+    padding: 12px;
+}
+
+
+</final_file_content>
+
+IMPORTANT: For any future changes to this file, use the final_file_content shown above as your reference. This content reflects the current state of the file, including any auto-formatting (e.g., if you used single quotes but the formatter converted them to double quotes). Always base your SEARCH/REPLACE operations on this final version to ensure accuracy.
+
+<environment_details>
+# VSCode Visible Files
+纵拉预热/PythonCode/run_gui.py
+纵拉预热/PythonCode/ui/model_tab.py
+
+# VSCode Open Tabs
+纵拉预热/PythonCode/run_gui.py
+纵拉预热/PythonCode/simulation_gui.py
+纵拉预热/PythonCode/logic/plot_utils.py
+纵拉预热/PythonCode/ui/model_tab.py
+纵拉预热/PythonCode/threads/simulation_thread.py
+纵拉预热/PythonCode/run_matlab_simulation.py
+纵拉预热/PythonCode/ui/run_tab.py
+纵拉预热/PythonCode/logic/model_manager.py
+纵拉预热/PythonCode/logic/visualization_manager.py
+纵拉预热/PythonCode/ui/public/images/background1.png
+纵拉预热/PythonCode/ui/styles.qss
+纵拉预热/PythonCode/ui/result_tab.py
+纵拉预热/PythonCode/ui/help_tab.py
+纵拉预热/PythonCode/README.md
+纵拉预热/PythonCode/ui/visualization_tab.py
+纵拉预热/PythonCode/threads/visualization_worker.py
+
+# Current Time
+2025/9/4 上午10:58:04 (Asia/Shanghai, UTC+8:00)
+
+# Context Window Usage
+344,516 / 1,048.576K tokens used (33%)
+
+# Current Mode
+ACT MODE
+</environment_details>
