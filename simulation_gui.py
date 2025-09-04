@@ -22,6 +22,15 @@ from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.patches import Rectangle
 
 # 项目模块导入
+from config.paths import (
+    get_config_file,
+    get_styles_file,
+    get_icon_file,
+    get_logo_file,
+    get_temp_matlab_dir,
+    get_background_image_file,
+    get_check_image_file
+)
 from Models import ScriptType, RollDirection, SimulationModel
 from threads.simulation_thread import SimulationThread
 from run_matlab_simulation import stop_all_matlab_engines, load_config
@@ -106,7 +115,7 @@ class SimulationGUI(QMainWindow):
 
     def load_initial_config(self):
         """Load the initial configuration from the JSON file."""
-        config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config.json")
+        config_path = get_config_file()
         try:
             with open(config_path, 'r', encoding='utf-8') as f:
                 config_data = json.load(f)
@@ -126,20 +135,30 @@ class SimulationGUI(QMainWindow):
         self.setGeometry(100, 100, 1600, 900)
         
         # 设置应用程序图标
-        icon_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ui", "public", "images", "icon.png")
+        icon_path = get_icon_file()
         if os.path.exists(icon_path):
             self.setWindowIcon(QIcon(icon_path))
         else:
             # 如果图标文件不存在，尝试使用SVG
-            svg_icon_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ui", "public", "images", "logo.svg")
+            svg_icon_path = get_logo_file()
             if os.path.exists(svg_icon_path):
                 self.setWindowIcon(QIcon(svg_icon_path))
         
         # Apply stylesheet
         # 应用样式表
-        qss_file_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ui", "styles.qss")
+        qss_file_path = get_styles_file()
         with open(qss_file_path, "r", encoding="utf-8") as f:
-            self.setStyleSheet(f.read())
+            stylesheet = f.read()
+            # Dynamically replace placeholders with absolute paths
+            stylesheet = stylesheet.replace(
+                "url(public/images/background1.png)",
+                f"url({get_background_image_file()})"
+            )
+            stylesheet = stylesheet.replace(
+                "url(public/images/check.png)",
+                f"url({get_check_image_file()})"
+            )
+            self.setStyleSheet(stylesheet)
         
         main_widget = QWidget()
 
@@ -230,7 +249,7 @@ class SimulationGUI(QMainWindow):
         logo_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         
         # 尝试加载logo图片，如果没有则显示文字logo
-        logo_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ui", "public","images","logo.svg")
+        logo_path = get_logo_file()
         if os.path.exists(logo_path):
             pixmap = QPixmap(logo_path)
             logo_label.setPixmap(pixmap.scaled(100, 30, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
@@ -444,7 +463,7 @@ class SimulationGUI(QMainWindow):
         self.figure.clear()
         self.canvas.draw()
         
-        temp_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "temp_matlab")
+        temp_dir = get_temp_matlab_dir()
         if os.path.exists(temp_dir):
             for file in os.listdir(temp_dir):
                 file_path = os.path.join(temp_dir, file)
@@ -468,7 +487,7 @@ class SimulationGUI(QMainWindow):
     def _save_config_to_file(self, file_path=None):
         """Internal method to save config to a JSON file."""
         if file_path is None:
-            file_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config.json")
+            file_path = get_config_file()
         
         try:
             config_data = {
@@ -495,7 +514,7 @@ class SimulationGUI(QMainWindow):
                 json.dump(config_data, f, indent=2)
             
             # Update the in-memory config only if saving to the default path
-            default_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config.json")
+            default_path = get_config_file()
             if file_path == default_path:
                 self.config = config_data
             return True

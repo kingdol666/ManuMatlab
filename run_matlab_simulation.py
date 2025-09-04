@@ -2,6 +2,7 @@ import os
 import json
 import matlab.engine
 import numpy as np
+from config.paths import get_config_file
 
 shared_matlab_engine = None
 
@@ -45,7 +46,7 @@ def stop_all_matlab_engines():
 
 def load_config():
     """从config.json加载配置"""
-    config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config.json")
+    config_path = get_config_file()
     try:
         with open(config_path, 'r', encoding='utf-8') as f:
             return json.load(f)

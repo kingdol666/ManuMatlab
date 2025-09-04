@@ -4,6 +4,7 @@ import numpy as np
 
 from Models import ScriptType, RollDirection
 from run_matlab_simulation import run_matlab_script, load_config, start_shared_engine, stop_shared_engine
+from config.paths import get_matlab_scripts_dir
 
 class InterruptedError(Exception):
     pass
@@ -51,8 +52,9 @@ class SimulationThread(QThread):
                 else:
                     folder = "冷却2"
                 
-                mesh_path = f"e:/MatlabSpace/纵拉预热/{folder}/shijian_rechuandao_mesh.m"
-                main_path = f"e:/MatlabSpace/纵拉预热/{folder}/shijian_rechuandao_main.m"
+                scripts_dir = get_matlab_scripts_dir()
+                mesh_path = os.path.join(scripts_dir, folder, "shijian_rechuandao_mesh.m")
+                main_path = os.path.join(scripts_dir, folder, "shijian_rechuandao_main.m")
 
                 input_vars = {'T_GunWen_Input': model.T_GunWen, 't_up_input': model.t_up}
                 if self.last_T1 is not None and i > 0:
