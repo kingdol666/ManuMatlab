@@ -147,7 +147,23 @@ class VisualizationManager:
             except Exception as e:
                 print(f"Live viz error (pass 2) step {step_result.get('model_id', 'N/A')}: {e}")
 
-        ax.autoscale(enable=True, axis='both', tight=True)
+        # Set axis limits to be tight
+        if valid_steps_data:
+            # Find overall y limits
+            y_min, y_max = float('inf'), float('-inf')
+            for step_result in valid_steps_data:
+                output = step_result['output']
+                JXYV, BN2 = np.array(output['JXYV']), np.array(output['BN2'])
+                BN2_int = BN2.astype(int).flatten() - 1
+                valid_indices = BN2_int[(BN2_int >= 0) & (BN2_int < JXYV.shape[0])]
+                if valid_indices.size > 0:
+                    y_coords = JXYV[valid_indices, 1]
+                    y_min = min(y_min, y_coords.min())
+                    y_max = max(y_max, y_coords.max())
+            
+            if y_min != float('inf'):
+                ax.set_xlim(0, cumulative_time)
+                ax.set_ylim(y_min, y_max)
 
         # If animation is active, draw the progress pointer
         if self.visualization_active:
@@ -532,8 +548,9 @@ class VisualizationManager:
                     tttt = T_data[valid_indices, :]
 
                     if xxxx.size > 0:
-                        ax.set_ylim(np.min(y_coords), np.max(y_coords))
                         contour = ax.contourf(xxxx, yyyy, tttt, cmap='jet', levels=20)
+                        ax.set_xlim(np.min(time_array), np.max(time_array))
+                        ax.set_ylim(np.min(y_coords), np.max(y_coords))
                         self.gradient_figure.colorbar(contour, ax=ax)
                         ax.set_title(f"模型 #{current_model_index + 1} 温度梯度")
                         ax.set_xlabel("时间 (s)")
@@ -619,7 +636,7 @@ class VisualizationManager:
             combined_T = np.hstack(all_T_arrays)
             time_steps = np.arange(combined_T.shape[1])
             
-            row_indices = [30, num_rows // 2, num_rows - 50]
+            row_indices = [30, num_rows // 2, num_rows - 200]
             row_labels = ['膜底部', '中间层', '膜顶部']
             
             model_boundaries = []
@@ -696,8 +713,8 @@ class VisualizationManager:
         cols = min(num_steps, 2)
         rows = (num_steps + cols - 1) // cols
         
-        y_margin = (all_y_max - all_y_min) * 0.1 if all_y_max > all_y_min else 0.1
-        y_range = [all_y_min - y_margin, all_y_max + y_margin]
+        # Use tight y-range for all subplots for consistent scale without padding
+        y_range = [all_y_min, all_y_max]
         
         t_levels = np.linspace(all_t_min, all_t_max, 20)
         
@@ -707,6 +724,8 @@ class VisualizationManager:
             ax.set_xlabel('Time/s')
             ax.set_ylabel('PBAT Thickness (m)')
             ax.set_ylim(y_range)
+            # Manually set x-limits to remove padding
+            ax.set_xlim(step_data['xxxx'].min(), step_data['xxxx'].max())
             step_result = step_data['step_result']
             ax.set_title(f"步骤 {step_result['model_id']}: {step_result['model_type']}")
             ax.grid(True, linestyle='--', alpha=0.6)
@@ -740,10 +759,18 @@ class VisualizationManager:
 
         mesh = None
         levels = np.linspace(all_t_min, all_t_max, 100)
+        x_min, x_max = float('inf'), float('-inf')
+        y_min, y_max = float('inf'), float('-inf')
         for data in plot_data:
             mesh = ax.contourf(data['xxxx'], data['yyyy'], data['tttt'], cmap='jet', levels=levels)
+            x_min = min(x_min, data['xxxx'].min())
+            x_max = max(x_max, data['xxxx'].max())
+            y_min = min(y_min, data['yyyy'].min())
+            y_max = max(y_max, data['yyyy'].max())
 
-        ax.autoscale(enable=True, axis='both', tight=True)
+        if mesh:
+            ax.set_xlim(x_min, x_max)
+            ax.set_ylim(y_min, y_max)
 
         for boundary_time in boundary_times:
             ax.axvline(x=boundary_time, color='k', linestyle=':', linewidth=1)
@@ -773,10 +800,18 @@ class VisualizationManager:
 
         mesh = None
         levels = np.linspace(all_t_min, all_t_max, 100)
+        x_min, x_max = float('inf'), float('-inf')
+        y_min, y_max = float('inf'), float('-inf')
         for data in plot_data:
             mesh = ax.contourf(data['xxxx'], data['yyyy'], data['tttt'], cmap='jet', levels=levels)
+            x_min = min(x_min, data['xxxx'].min())
+            x_max = max(x_max, data['xxxx'].max())
+            y_min = min(y_min, data['yyyy'].min())
+            y_max = max(y_max, data['yyyy'].max())
 
-        ax.autoscale(enable=True, axis='both', tight=True)
+        if mesh:
+            ax.set_xlim(x_min, x_max)
+            ax.set_ylim(y_min, y_max)
 
         for boundary_time in boundary_times:
             ax.axvline(x=boundary_time, color='k', linestyle=':', linewidth=1)
@@ -898,8 +933,8 @@ class VisualizationManager:
         if not valid_steps:
             return
 
-        y_margin = (all_y_max - all_y_min) * 0.05 if all_y_max > all_y_min else 0.1
-        y_range = [all_y_min - y_margin, all_y_max + y_margin]
+        # Use tight y-range for all subplots for consistent scale without padding
+        y_range = [all_y_min, all_y_max]
         t_levels = np.linspace(all_t_min, all_t_max, 20)
         
         for i, step_data in enumerate(valid_steps):
@@ -912,6 +947,7 @@ class VisualizationManager:
             step_result = step_data['step_result']
             ax.set_title(f"步骤 {step_result['model_id']}: {step_result['model_type']}")
             ax.grid(True, linestyle='--', alpha=0.6)
+            ax.set_xlim(step_data['xxxx'].min(), step_data['xxxx'].max())
             fig.colorbar(contour, ax=ax)
             fig.tight_layout()
             
@@ -939,7 +975,7 @@ class VisualizationManager:
             ax = fig.add_subplot(111)
             time_steps = np.arange(combined_T.shape[1])
             
-            row_indices = [30, num_rows // 2, num_rows - 150]
+            row_indices = [30, num_rows // 2, num_rows -200]
             row_labels = ['膜底部', '中间层', '膜顶部']
             
             for i, row_idx in enumerate(row_indices):

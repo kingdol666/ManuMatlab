@@ -133,15 +133,15 @@ def create_config_tab(main_window):
     mesh_params_layout.addRow("铸片宽度 (L):", main_window.l_edit)
 
     main_window.nx_edit = QSpinBox()
-    main_window.nx_edit.setRange(1, 1000)
+    main_window.nx_edit.setRange(10, 1000)
     main_window.nx_edit.setMinimumWidth(120)
-    main_window.nx_edit.setToolTip("X方向上的网格划分数量。")
+    main_window.nx_edit.setToolTip("X方向上的网格划分数量。不宜过高，25左右即可。(10-1000)")
     mesh_params_layout.addRow("Nx:", main_window.nx_edit)
 
     main_window.ny_edit = QSpinBox()
-    main_window.ny_edit.setRange(1, 1000)
+    main_window.ny_edit.setRange(10, 1000)
     main_window.ny_edit.setMinimumWidth(120)
-    main_window.ny_edit.setToolTip("Y方向上的网格划分数量。")
+    main_window.ny_edit.setToolTip("Y方向上的网格划分数量。不宜过高，25左右即可。(10-1000)")
     mesh_params_layout.addRow("Ny:", main_window.ny_edit)
 
     params_layout.addWidget(mesh_params_group, 0, 1, 2, 1)
