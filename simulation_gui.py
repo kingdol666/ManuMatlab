@@ -358,7 +358,7 @@ class SimulationGUI(QMainWindow):
             self.progress_bar.setMaximum(len(self.model_manager.simulation_models))
 
         # Start live visualization
-        self.visualization_manager.live_visualization_active = True
+        self.visualization_manager.model.live_visualization_active = True
         self.simulation_step_results = [] # Clear previous results
         self.visualization_manager.draw_live_visualization() # Draw initial empty state
             
@@ -406,7 +406,7 @@ class SimulationGUI(QMainWindow):
             self.progress_bar.setValue(self.progress_bar.maximum())
             
         # 仿真完成后自动重启可视化
-        self.visualization_manager.live_visualization_active = False
+        self.visualization_manager.model.live_visualization_active = False
         self.running_simulation_models = []
         self.visualization_manager.restart_visualization()
             
@@ -430,7 +430,7 @@ class SimulationGUI(QMainWindow):
         # 更新日志
         self.update_log(f"模型 #{step_result['model_id']} 运行完成，结果已添加")
 
-        if self.visualization_manager.live_visualization_active:
+        if self.visualization_manager.model.live_visualization_active:
             self.visualization_manager.draw_live_visualization()
         
         
@@ -446,10 +446,10 @@ class SimulationGUI(QMainWindow):
         QMessageBox.critical(self, "错误", error_message)
         
         # 出错时停止可视化
-        if self.visualization_manager.visualization_active:
+        if self.visualization_manager.model.visualization_active:
             self.visualization_manager.stop_visualization()
 
-        self.visualization_manager.live_visualization_active = False
+        self.visualization_manager.model.live_visualization_active = False
         self.running_simulation_models = []
         self.visualization_manager.draw_model_schematic()
             

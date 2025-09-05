@@ -21,6 +21,40 @@ from .Models import ScriptType, RollDirection
 from .plot_utils import get_combined_contour_data
 
 
+class VisualizationModel:
+    """Holds the state and data for visualization."""
+
+    def __init__(self):
+        """Initializes the visualization model."""
+        self.visualization_active = False
+        self.current_step = 0
+        self.film_position = 0
+        self.roll_angle = 0
+        self.live_visualization_active = False
+        self.animation_frame = 0
+        self.avg_temperatures = []
+        self.visualization_source_data = []
+        self.visualization_models = []
+        self.temperature_curve_data = None
+        self.current_simulation_time = 0
+        self.total_simulation_time = 0
+
+    def clear(self):
+        """Clears all visualization data."""
+        self.visualization_active = False
+        self.current_step = 0
+        self.film_position = 0
+        self.roll_angle = 0
+        self.live_visualization_active = False
+        self.animation_frame = 0
+        self.avg_temperatures = []
+        self.visualization_source_data = []
+        self.visualization_models = []
+        self.temperature_curve_data = None
+        self.current_simulation_time = 0
+        self.total_simulation_time = 0
+
+
 class VisualizationManager:
     """Manages all visualization-related functionalities for the Simulation GUI."""
 
@@ -35,17 +69,9 @@ class VisualizationManager:
         self.gradient_dialog = None
         self.temperature_curve_dialog = None
 
-        # Visualization state attributes
-        self.visualization_active = False
-        self.current_step = 0
-        self.film_position = 0
-        self.roll_angle = 0
-        self.live_visualization_active = False
-        self.animation_frame = 0
-        self.avg_temperatures = []
-        self.visualization_source_data = []
-        self.visualization_models = []
-        self.temperature_curve_data = None
+        # Encapsulated visualization state and data model
+        self.model = VisualizationModel()
+
         # --------- 动画优化相关属性 ---------
         self.dynamic_initialized = False
         self.anim_ax = None
@@ -65,16 +91,7 @@ class VisualizationManager:
 
     def clear_data(self):
         """Clears all visualization data."""
-        self.visualization_active = False
-        self.current_step = 0
-        self.film_position = 0
-        self.roll_angle = 0
-        self.live_visualization_active = False
-        self.animation_frame = 0
-        self.avg_temperatures = []
-        self.visualization_source_data = []
-        self.visualization_models = []
-        self.temperature_curve_data = None
+        self.model.clear()
 
     # ---------------- Live Visualization / Schematic Methods ----------------
     def toggle_live_contour_visibility(self, state):
@@ -166,8 +183,8 @@ class VisualizationManager:
                 ax.set_ylim(y_min, y_max)
 
         # If animation is active, draw the progress pointer
-        if self.visualization_active:
-            ax.axvline(x=self.current_simulation_time, color='r', linestyle='--', linewidth=2)
+        if self.model.visualization_active:
+            ax.axvline(x=self.model.current_simulation_time, color='r', linestyle='--', linewidth=2)
 
         # Draw vertical lines to separate models
         boundary_time = 0
@@ -255,7 +272,7 @@ class VisualizationManager:
         ax.set_xlabel('工艺流程 (时间 / s)')
         ax.get_yaxis().set_visible(False)
 
-        total_time = self.total_simulation_time
+        total_time = self.model.total_simulation_time
         if total_time <= 0:
             return
 
@@ -272,7 +289,7 @@ class VisualizationManager:
         self.roll_indicator_infos.clear()
         self.avg_temp_texts.clear()
 
-        for i, model in enumerate(self.visualization_models):
+        for i, model in enumerate(self.model.visualization_models):
             model_duration = model.t_up
             x_start = cumulative_time
             x_center_model = x_start + model_duration / 2
@@ -321,26 +338,26 @@ class VisualizationManager:
             QMessageBox.warning(self.gui, "警告", "没有可用的仿真结果数据")
             return
 
-        self.visualization_source_data = list(self.gui.simulation_step_results)
-        self.visualization_models = list(self.gui.model_manager.simulation_models)
+        self.model.visualization_source_data = list(self.gui.simulation_step_results)
+        self.model.visualization_models = list(self.gui.model_manager.simulation_models)
             
-        self.visualization_active = True
-        self.current_step = 0
-        self.animation_frame = 0
-        self.total_simulation_time = sum(model.t_up for model in self.visualization_models)
-        self.current_simulation_time = 0
+        self.model.visualization_active = True
+        self.model.current_step = 0
+        self.model.animation_frame = 0
+        self.model.total_simulation_time = sum(model.t_up for model in self.model.visualization_models)
+        self.model.current_simulation_time = 0
         # 初始化优化画布
         self.dynamic_initialized = False
         self._setup_animation_canvas()
         
-        self.avg_temperatures = []
-        for step_result in self.visualization_source_data:
+        self.model.avg_temperatures = []
+        for step_result in self.model.visualization_source_data:
             avg_temp = None
             if 'output' in step_result and 'T' in step_result['output']:
                 T = np.array(step_result['output']['T'])
                 if T.size > 0:
                     avg_temp = np.mean(T)
-            self.avg_temperatures.append(avg_temp)
+            self.model.avg_temperatures.append(avg_temp)
 
         self.gui.start_visualization_button.setEnabled(False)
         self.gui.stop_visualization_button.setEnabled(True)
@@ -358,7 +375,7 @@ class VisualizationManager:
             self.worker_thread.wait()
 
         self.worker_thread = QThread()
-        self.vis_worker = VisualizationWorker(self.total_simulation_time)
+        self.vis_worker = VisualizationWorker(self.model.total_simulation_time)
         self.vis_worker.moveToThread(self.worker_thread)
 
         # 信号连接
@@ -372,7 +389,7 @@ class VisualizationManager:
         
     def stop_visualization(self):
         """Stops the dynamic visualization."""
-        self.visualization_active = False
+        self.model.visualization_active = False
         if self.vis_worker:
             QMetaObject.invokeMethod(self.vis_worker, "stop", Qt.ConnectionType.QueuedConnection)
         if self.worker_thread and self.worker_thread.isRunning():
@@ -389,7 +406,7 @@ class VisualizationManager:
 
     def restart_visualization(self):
         """Restarts the visualization, typically after a simulation run completes."""
-        if self.visualization_active:
+        if self.model.visualization_active:
             self.stop_visualization()
         if self.gui.simulation_step_results:
             self.start_visualization()
@@ -406,8 +423,8 @@ class VisualizationManager:
 
     def _tick_animation(self):
         """Timer-triggered function to update the animation."""
-        if self.visualization_active:
-            self.animation_frame += 1
+        if self.model.visualization_active:
+            self.model.animation_frame += 1
             self._update_animation_frame()
             self.draw_live_visualization()
 
@@ -423,8 +440,8 @@ class VisualizationManager:
             return
         
         frame_idx, current_time = self.pending_frame_data
-        self.animation_frame = frame_idx
-        self.current_simulation_time = current_time
+        self.model.animation_frame = frame_idx
+        self.model.current_simulation_time = current_time
         
         self._update_animation_frame()
         self.draw_live_visualization()
@@ -433,7 +450,7 @@ class VisualizationManager:
 
     def show_realtime_temperature_gradient(self):
         """Shows a new window with the realtime temperature gradient."""
-        if not self.visualization_active:
+        if not self.model.visualization_active:
             QMessageBox.warning(self.gui, "警告", "请先开始可视化。")
             return
 
@@ -451,29 +468,29 @@ class VisualizationManager:
 
     def _update_animation_frame(self):
         """Updates dynamic artists for the current animation frame without redrawing static background."""
-        if not (self.visualization_active and self.dynamic_initialized):
+        if not (self.model.visualization_active and self.dynamic_initialized):
             return
 
         # Update current simulation time based on frame index
         animation_duration_frames = 200
-        time_ratio = (self.animation_frame % animation_duration_frames) / animation_duration_frames
-        self.current_simulation_time = time_ratio * self.total_simulation_time
+        time_ratio = (self.model.animation_frame % animation_duration_frames) / animation_duration_frames
+        self.model.current_simulation_time = time_ratio * self.model.total_simulation_time
 
         # Update film segment position
-        self.film_segment_artist.set_x(self.current_simulation_time - self.film_segment_artist.get_width() / 2)
+        self.film_segment_artist.set_x(self.model.current_simulation_time - self.film_segment_artist.get_width() / 2)
 
         # Update roll indicator lines
         for info in self.roll_indicator_infos:
-            angle_rad = np.radians(self.animation_frame * 5 * info['direction'])
+            angle_rad = np.radians(self.model.animation_frame * 5 * info['direction'])
             indicator_x = info['x_center'] + info['roll_radius'] * 0.8 * np.cos(angle_rad)
             indicator_y = info['y_center'] + info['roll_radius'] * 0.8 * np.sin(angle_rad)
             info['line'].set_data([info['x_center'], indicator_x], [info['y_center'], indicator_y])
 
         # Update average temperature text visibility/content
         for idx, txt_info in enumerate(self.avg_temp_texts):
-            if txt_info['start'] <= self.current_simulation_time < txt_info['end']:
-                if idx < len(self.avg_temperatures) and self.avg_temperatures[idx] is not None:
-                    txt_info['text'].set_text(f"Avg Temp: {self.avg_temperatures[idx]:.2f} K")
+            if txt_info['start'] <= self.model.current_simulation_time < txt_info['end']:
+                if idx < len(self.model.avg_temperatures) and self.model.avg_temperatures[idx] is not None:
+                    txt_info['text'].set_text(f"Avg Temp: {self.model.avg_temperatures[idx]:.2f} K")
                     txt_info['text'].set_visible(True)
             else:
                 txt_info['text'].set_visible(False)
@@ -499,7 +516,7 @@ class VisualizationManager:
 
     def toggle_visualization_pause(self):
         """Toggles the pause/resume state of the visualization."""
-        if not self.visualization_active:
+        if not self.model.visualization_active:
             return
 
         if self.vis_worker:
@@ -521,18 +538,18 @@ class VisualizationManager:
         
         cumulative_time = 0
         current_model_index = -1
-        for i, model in enumerate(self.visualization_models):
+        for i, model in enumerate(self.model.visualization_models):
             model_duration = model.t_up
-            if self.current_simulation_time >= cumulative_time and self.current_simulation_time < cumulative_time + model_duration:
+            if self.model.current_simulation_time >= cumulative_time and self.model.current_simulation_time < cumulative_time + model_duration:
                 current_model_index = i
                 break
             cumulative_time += model_duration
         
         if current_model_index == -1:
-            current_model_index = len(self.visualization_models) - 1
+            current_model_index = len(self.model.visualization_models) - 1
 
-        if current_model_index >= 0 and current_model_index < len(self.visualization_source_data):
-            step_result = self.visualization_source_data[current_model_index]
+        if current_model_index >= 0 and current_model_index < len(self.model.visualization_source_data):
+            step_result = self.model.visualization_source_data[current_model_index]
             if 'output' in step_result and all(k in step_result['output'] for k in ['t', 'JXYV', 'BN2', 'T']):
                 output = step_result['output']
                 t = output['t'].item() if isinstance(output['t'], np.ndarray) and output['t'].size == 1 else float(output['t'])
@@ -573,7 +590,7 @@ class VisualizationManager:
         state = {
             "simulation_step_results": self.gui.simulation_step_results,
             "simulation_models": [self.gui.model_manager._model_to_dict(m) for m in self.gui.model_manager.simulation_models],
-            "average_temperatures": self.avg_temperatures,
+            "average_temperatures": self.model.avg_temperatures,
         }
         
         if temperature_data:
@@ -599,8 +616,8 @@ class VisualizationManager:
             self.clear_data()
 
             self.gui.simulation_step_results = state.get("simulation_step_results", [])
-            self.temperature_curve_data = state.get("temperature_curve_data")
-            self.avg_temperatures = state.get("average_temperatures", [])
+            self.model.temperature_curve_data = state.get("temperature_curve_data")
+            self.model.avg_temperatures = state.get("average_temperatures", [])
             
             self.gui.model_manager.simulation_models.clear()
             model_data = state.get("simulation_models", [])
@@ -826,8 +843,8 @@ class VisualizationManager:
 
     def show_temperature_curves(self, key=None):
         """Displays temperature curves for key locations in a new window."""
-        if self.temperature_curve_data:
-            curve_data = self.temperature_curve_data
+        if self.model.temperature_curve_data:
+            curve_data = self.model.temperature_curve_data
             self.gui.update_log("使用加载的温度曲线数据绘图。")
         else:
             if not self.gui.simulation_step_results:

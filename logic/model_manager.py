@@ -51,7 +51,7 @@ class ModelManager:
 
     def delete_model(self):
         """删除选中的仿真模型"""
-        if self.gui.visualization_manager.visualization_active:
+        if self.gui.visualization_manager.model.visualization_active:
             self.gui.visualization_manager.stop_visualization()
             
         selected_ranges = self.gui.model_table.selectedRanges()
@@ -78,7 +78,7 @@ class ModelManager:
     
     def delete_all_models(self):
         """删除所有仿真模型"""
-        if self.gui.visualization_manager.visualization_active:
+        if self.gui.visualization_manager.model.visualization_active:
             self.gui.visualization_manager.stop_visualization()
 
         if not self.simulation_models:
