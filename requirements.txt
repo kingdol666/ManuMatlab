@@ -3,5 +3,5 @@ scipy
 PyQt6
 matplotlib
 markdown
-matlabengine
 psutil
+tqdm
