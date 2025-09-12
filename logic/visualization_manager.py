@@ -1,7 +1,9 @@
 # Standard library imports
+from __future__ import annotations
 import os
 import json
 import pickle
+from typing import TYPE_CHECKING
 
 # Third-party library imports
 import numpy as np
@@ -15,9 +17,10 @@ from PyQt6.QtWidgets import (
     QComboBox, QLabel, QTabWidget, QTextEdit, QTableWidget, QTableWidgetItem,
     QGridLayout, QPushButton
 )
-
 # Project module imports
 from .Models import ScriptType, RollDirection
+if TYPE_CHECKING:
+    from simulation_gui import SimulationGUI
 from .plot_utils import get_combined_contour_data
 
 
@@ -58,14 +61,14 @@ class VisualizationModel:
 class VisualizationManager:
     """Manages all visualization-related functionalities for the Simulation GUI."""
 
-    def __init__(self, gui):
+    def __init__(self, gui: 'SimulationGUI'):
         """
         Initializes the VisualizationManager.
 
         Args:
             gui: The main SimulationGUI instance.
         """
-        self.gui = gui
+        self.gui: 'SimulationGUI' = gui
         self.gradient_dialog = None
         self.temperature_curve_dialog = None
 
@@ -180,7 +183,7 @@ class VisualizationManager:
             
             if y_min != float('inf'):
                 ax.set_xlim(0, cumulative_time)
-                ax.set_ylim(y_min, y_max)
+                ax.set_ylim(y_min, y_max) 
 
         # If animation is active, draw the progress pointer
         if self.model.visualization_active:
