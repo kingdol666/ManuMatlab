@@ -12,7 +12,6 @@ def create_model_tab(main_window):
     main_layout = QHBoxLayout(model_widget)
     main_layout.setContentsMargins(24, 24, 24, 24)
     main_layout.setSpacing(24)
-
     # --- 左侧：模型配置 ---
     left_panel = QWidget()
     left_panel.setMaximumWidth(350)
@@ -125,6 +124,11 @@ def create_model_tab(main_window):
     main_window.load_models_button = QPushButton("加载模型序列")
     main_window.load_models_button.clicked.connect(main_window.model_manager.load_model_sequence)
     save_load_layout.addWidget(main_window.load_models_button)
+
+    main_window.rl_optimize_button = QPushButton("智能优化")
+    main_window.rl_optimize_button.setObjectName("optimizeButton") # 使用不同的对象名以应用特殊样式
+    save_load_layout.addWidget(main_window.rl_optimize_button)
+
     save_load_layout.addStretch()
 
     table_layout.addWidget(save_load_row_widget)

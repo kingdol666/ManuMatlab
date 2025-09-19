@@ -21,6 +21,16 @@ def create_run_tab(main_window):
     main_window.run_button.setObjectName("primaryButton")
     control_layout.addWidget(main_window.run_button)
 
+    main_window.load_model_button = QPushButton("加载模型")
+    main_window.load_model_button.clicked.connect(main_window.load_rl_model)
+    control_layout.addWidget(main_window.load_model_button)
+
+    main_window.run_with_agent_button = QPushButton("使用Agent运行")
+    main_window.run_with_agent_button.clicked.connect(main_window.run_simulation_with_agent)
+    main_window.run_with_agent_button.setObjectName("successButton")
+    main_window.run_with_agent_button.setEnabled(False) # Initially disabled
+    control_layout.addWidget(main_window.run_with_agent_button)
+
     main_window.terminate_button = QPushButton("终止仿真")
     main_window.terminate_button.clicked.connect(main_window.terminate_simulation)
     main_window.terminate_button.setObjectName("dangerButton")
@@ -31,6 +41,14 @@ def create_run_tab(main_window):
     main_window.clear_button.setObjectName("deleteButton")
     main_window.clear_button.clicked.connect(main_window.clear_results)
     control_layout.addWidget(main_window.clear_button)
+
+    control_layout.addStretch(1) # Add a stretch to push the stop button to the right
+
+    main_window.rl_stop_button = QPushButton("停止优化")
+    main_window.rl_stop_button.setObjectName("dangerButton")
+    main_window.rl_stop_button.clicked.connect(main_window.stop_rl_optimization)
+    # self.rl_stop_button.setEnabled(False) # Keep it consistent with simulation_gui.py
+    control_layout.addWidget(main_window.rl_stop_button)
     
     control_layout.addStretch()
     

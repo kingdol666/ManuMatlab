@@ -1,13 +1,14 @@
+from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import (
-    QWidget, QVBoxLayout, QGroupBox, QHBoxLayout, QPushButton, QCheckBox
+    QWidget, QVBoxLayout, QGroupBox, QHBoxLayout, QPushButton, QCheckBox, QLabel, QStackedWidget
 )
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 
 def create_result_tab(main_window):
     """创建结果可视化选项卡"""
-    result_widget = QWidget()
-    main_layout = QHBoxLayout(result_widget)
+    main_window.result_tab = QWidget()
+    main_layout = QHBoxLayout(main_window.result_tab)
     main_layout.setContentsMargins(24, 24, 24, 24)
     main_layout.setSpacing(24)
 
@@ -70,19 +71,29 @@ def create_result_tab(main_window):
     control_layout.addWidget(visualize_group)
     control_layout.addStretch()
 
-    # --- 右侧：图表显示区域 ---
-    chart_panel = QWidget()
-    chart_layout = QVBoxLayout(chart_panel)
-    chart_layout.setContentsMargins(0, 0, 0, 0)
-    chart_layout.setSpacing(0)
+    # --- 右侧：图表显示区域 (使用 QStackedWidget) ---
+    display_panel = QWidget()
+    display_layout = QVBoxLayout(display_panel)
+    display_layout.setContentsMargins(0, 0, 0, 0)
     
+    main_window.result_display_stack = QStackedWidget()
+    
+    # 页面1: Matplotlib Canvas for charts
     main_window.figure = Figure(figsize=(8, 6), dpi=100)
     main_window.figure.patch.set_alpha(0)
     main_window.canvas = FigureCanvas(main_window.figure)
     main_window.canvas.setObjectName("canvas")
-    chart_layout.addWidget(main_window.canvas)
+    main_window.result_display_stack.addWidget(main_window.canvas)
+    
+    # 页面2: QLabel for static images
+    main_window.result_image_label = QLabel("No image to display.")
+    main_window.result_image_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+    main_window.result_image_label.setObjectName("resultImageLabel")
+    main_window.result_display_stack.addWidget(main_window.result_image_label)
+    
+    display_layout.addWidget(main_window.result_display_stack)
 
     main_layout.addWidget(control_panel)
-    main_layout.addWidget(chart_panel, 1)
+    main_layout.addWidget(display_panel, 1)
 
-    return result_widget
+    return main_window.result_tab

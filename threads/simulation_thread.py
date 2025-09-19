@@ -3,7 +3,7 @@ from PyQt6.QtCore import QThread, pyqtSignal
 import numpy as np
 
 from logic.Models import ScriptType, RollDirection
-from logic.run_matlab_simulation import run_matlab_script, load_config, start_shared_engine, stop_shared_engine
+from logic.run_matlab_simulation import run_matlab_script, load_config, start_shared_engine, stop_shared_engine, clear_matlab_engine_workspace
 from config.paths import get_matlab_scripts_dir
 
 class InterruptedError(Exception):
@@ -56,13 +56,22 @@ class SimulationThread(QThread):
                 mesh_path = os.path.join(scripts_dir, folder, "shijian_rechuandao_mesh.m")
                 main_path = os.path.join(scripts_dir, folder, "shijian_rechuandao_main.m")
 
-                input_vars = {'T_GunWen_Input': model.T_GunWen, 't_up_input': model.t_up}
-                if self.last_T1 is not None and i > 0:
-                    input_vars['T1'] = self.last_T1
+                main_output = None  # Initialize main_output
+                try:
+                    input_vars = {'T_GunWen_Input': model.T_GunWen, 't_up_input': model.t_up}
+                    if self.last_T1 is not None and i > 0:
+                        input_vars['T1'] = self.last_T1
+                    
+                    # Run mesh script with only mesh_params, creating the mesh.mat file
+                    run_matlab_script(mesh_path, [], config['mesh_params'], {})
+                    
+                    # Run main script, which loads mesh.mat and uses main_params and dynamic inputs
+                    main_output = run_matlab_script(main_path, ['T', 'T_ave', 'Time', 'JXYV', 'BN2', 'T1', 't', 'Ns'], config['main_params'], input_vars)
                 
-                run_matlab_script(mesh_path, [], config['mesh_params'], input_vars)
-                main_output = run_matlab_script(main_path, ['T', 'T_ave', 'Time', 'JXYV', 'BN2', 'T1', 't', 'Ns'], config['main_params'], input_vars)
-                
+                finally:
+                    # Ensure the MATLAB workspace is cleared after each model simulation step
+                    clear_matlab_engine_workspace()
+
                 if main_output:
                     self.log_updated.emit(f"模型 #{i+1} 运行成功")
                     if 'T' in main_output and main_output['T'] is not None:

@@ -9,6 +9,13 @@ from typing import TYPE_CHECKING
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.figure import Figure
+
+# 尝试设置支持中文的字体
+try:
+    plt.rcParams['font.sans-serif'] = ['SimHei', 'Microsoft YaHei']  # 'SimHei' 是黑体, 'Microsoft YaHei' 是微软雅黑
+    plt.rcParams['axes.unicode_minus'] = False  # 解决负号'-'显示为方块的问题
+except Exception as e:
+    print(f"设置中文字体失败: {e}")
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.patches import Rectangle
 from PyQt6.QtCore import Qt, QThread, QMetaObject, QTimer, Q_ARG
@@ -22,6 +29,7 @@ from .Models import ScriptType, RollDirection
 if TYPE_CHECKING:
     from simulation_gui import SimulationGUI
 from .plot_utils import get_combined_contour_data
+from .run_matlab_simulation import load_config
 
 
 class VisualizationModel:
@@ -450,6 +458,97 @@ class VisualizationManager:
         self.draw_live_visualization()
         
         self.pending_frame_data = None
+
+    def plot_temperature_profile(self):
+        """Plots the temperature profile of the last column of T_data with enhanced visualization."""
+        if not self.model.visualization_source_data:
+            QMessageBox.warning(self.gui, "警告", "没有可用的可视化数据。")
+            return
+
+        last_step_result = self.model.visualization_source_data[-1]
+        output = last_step_result.get('output', {})
+        if not all(k in output for k in ['T', 'JXYV', 'BN2']):
+            QMessageBox.warning(self.gui, "警告", "仿真结果缺少'T', 'JXYV', 或 'BN2'数据，无法绘制精确的温度分布。")
+            return
+
+        try:
+            T_data = np.array(output['T'])
+            JXYV = np.array(output['JXYV'])
+            BN2 = np.array(output['BN2'])
+
+            if T_data.ndim != 2 or T_data.shape[1] == 0:
+                QMessageBox.warning(self.gui, "警告", "温度数据'T'格式不正确。")
+                return
+
+            # 从BN2和JXYV获取沿厚度方向的精确坐标
+            BN2_int = BN2.astype(int).flatten() - 1  # MATLAB to Python indexing
+            valid_indices = BN2_int[(BN2_int >= 0) & (BN2_int < JXYV.shape[0])]
+            
+            if valid_indices.size == 0:
+                QMessageBox.warning(self.gui, "警告", "未能从'BN2'和'JXYV'中提取有效的坐标。")
+                return
+
+            # 距离是网格中的实际y坐标
+            distance = JXYV[valid_indices, 1]
+            
+            # 提取最后一个时间步的温度数据
+            # 假设T_data的行与JXYV的行对应
+            if T_data.shape[0] == JXYV.shape[0]:
+                temperature_profile_kelvin = T_data[valid_indices, -1]
+            else:
+                # 如果T_data的行数与BN2的长度匹配，则假定它已经被预先筛选
+                if T_data.shape[0] == len(valid_indices):
+                    temperature_profile_kelvin = T_data[:, -1]
+                else:
+                    QMessageBox.warning(self.gui, "警告", "温度数据'T'的行数与网格坐标不匹配。")
+                    return
+
+            temperature_profile_celsius = temperature_profile_kelvin - 273.15
+
+            plt.style.use('seaborn-v0_8-whitegrid')
+            dialog = QDialog(self.gui)
+            dialog.setWindowTitle("最终温度分布")
+            dialog.setMinimumSize(800, 600)
+            layout = QVBoxLayout(dialog)
+            
+            fig = Figure(figsize=(8, 6), dpi=100)
+            canvas = FigureCanvas(fig)
+            layout.addWidget(canvas)
+
+            ax = fig.add_subplot(111)
+
+            # Set axis limits with padding
+            temp_min, temp_max = np.min(temperature_profile_celsius), np.max(temperature_profile_celsius)
+            padding = (temp_max - temp_min) * 0.1
+            ax.set_xlim(temp_min - padding, temp_max + padding)
+            ax.set_ylim(np.min(distance), np.max(distance))
+
+            # Add a gradient background
+            xmin, xmax = ax.get_xlim()
+            ymin, ymax = ax.get_ylim()
+            gradient = np.linspace(0, 1, 256).reshape(1, -1)
+            ax.imshow(gradient, aspect='auto', cmap=plt.get_cmap('coolwarm'), 
+                      extent=[xmin, xmax, ymin, ymax], alpha=0.4)
+
+            # Plot the main temperature curve on top
+            ax.plot(temperature_profile_celsius, distance, marker='o', markersize=5, linestyle='-', 
+                    linewidth=2.5, color='#2c3e50', label='温度分布')
+
+            # Enhance labels and title
+            ax.set_xlabel("温度 (°C)", fontsize=12, fontweight='bold')
+            ax.set_ylabel("距离膜底部距离 (m)", fontsize=12, fontweight='bold')
+            ax.set_title("沿膜厚度方向的最终温度分布", fontsize=16, fontweight='bold', pad=20)
+
+            # Customize grid and ticks
+            ax.grid(True, which='both', linestyle='--', linewidth=0.5)
+            ax.tick_params(axis='both', which='major', labelsize=10)
+
+            fig.tight_layout()
+            canvas.draw()
+            dialog.exec()
+
+        except Exception as e:
+            QMessageBox.critical(self.gui, "错误", f"绘制温度分布图时出错: {e}")
 
     def show_realtime_temperature_gradient(self):
         """Shows a new window with the realtime temperature gradient."""

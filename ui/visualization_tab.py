@@ -55,6 +55,10 @@ def create_visualization_tab(main_window):
     main_window.load_visualization_button = QPushButton("加载可视化")
     main_window.load_visualization_button.clicked.connect(main_window.visualization_manager.load_visualization_state)
     control_group_layout.addWidget(main_window.load_visualization_button)
+
+    main_window.plot_temperature_profile_button = QPushButton("绘制温度分布")
+    main_window.plot_temperature_profile_button.clicked.connect(main_window.visualization_manager.plot_temperature_profile)
+    control_group_layout.addWidget(main_window.plot_temperature_profile_button)
     
     control_layout.addWidget(control_group)
 
