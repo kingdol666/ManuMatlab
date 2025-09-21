@@ -37,7 +37,6 @@ class RlOptimizationThread(QThread):
         self.result_dir = "RLresult"
         self.output_path = os.path.join(self.result_dir, f"best_params_{n_rolls}rolls_{num_episodes}eps.json")
         self._is_running = True
-        self.high_score_threshold = 5  # 仅当奖励高于此阈值时，更新最佳动作
 
     def stop(self):
         """请求停止线程"""
@@ -72,7 +71,6 @@ class RlOptimizationThread(QThread):
                         action_low=env.action_low, action_high=env.action_high, device=device, log_updated=self.log_updated, replay_buffer_size=self.replay_buffer_size)
             
             rewards, best_reward, best_params = [], -np.inf, None
-            best_action_history = None # To store the sequence of actions from the best episode
             best_trajectories = [] # Store the top 4 best trajectories
             start_episode = 0
 
@@ -195,7 +193,7 @@ class RlOptimizationThread(QThread):
                         agent.train(best_trajectories)
 
                     state = next_state
-                    episode_reward += reward
+                    episode_reward += push_reward  # 使用与经验池一致的奖励进行评估
                     if done:
                         break
                 
@@ -259,7 +257,7 @@ class RlOptimizationThread(QThread):
                                 push_r = info_dict['norm_reward']
                             agent.push(s, a, push_r, ns, d)
                             s = ns
-                            ep_r += r
+                            ep_r += push_r  # 使用与经验池一致的奖励进行评估
                             if d: break
                         matlab_step_counter += 1
                         return ep_r

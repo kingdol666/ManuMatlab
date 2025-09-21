@@ -74,7 +74,9 @@ class FilmCastingEnv:
         
         # Initialize error tracking for the new reward function
         t0_temp = self.base_config.get('main_params', {}).get('T0', 400.0)
-        self.last_final_target_error = np.abs(t0_temp - self.target_temp_kelvin)
+        self.initial_temp_kelvin = t0_temp  # Store initial temperature
+        # This now tracks the error from the step-wise target
+        self.last_step_target_error = np.abs(t0_temp - self.initial_temp_kelvin) # Initially zero
         self.last_uniformity_error = 0.0  # Initial uniformity is perfect (zero std dev)
 
         self.current_temp_distribution = np.full(self.temp_points, t0_temp, dtype=np.float32)
@@ -203,15 +205,24 @@ class FilmCastingEnv:
         current_temp_distribution = self.last_cooling_T_matrix[:, -1]
         mean_current_temp = float(np.mean(current_temp_distribution))
         std_current = float(np.std(current_temp_distribution))
-        mean_err = float(abs(mean_current_temp - self.target_temp_kelvin))
 
         # --- 1. Define Normalization and Reward Parameters ---
         max_mean_err = 50.0  # Max expected error in Kelvin for normalization
         max_std = 5.0      # Max expected std dev in Kelvin for normalization
-        
-        # --- 2. Calculate Step-wise Progressive Reward Components ---
-        # The penalty for errors becomes harsher as we approach the final step.
+
+        # --- 2. Calculate Dynamic Step-wise Target and Progressive Reward ---
         step_progress = self.current_step / self.n_rolls
+        
+        # Use a logarithmic curve for the target temperature progression.
+        # This ensures the target moves quickly at the start and slows down as it approaches the final target.
+        # np.log1p(1) is log(2), so this scales the progress from 0 to 1 logarithmically.
+        eased_progress = np.log1p(step_progress) / np.log1p(1)
+        current_step_target_temp = self.initial_temp_kelvin + (self.target_temp_kelvin - self.initial_temp_kelvin) * eased_progress
+        
+        # Calculate error based on the DYNAMIC target for this step
+        mean_err = float(abs(mean_current_temp - current_step_target_temp))
+
+        # The penalty for errors becomes harsher as we approach the final step.
         k_mean = 1.0 + step_progress * 4.0  # Sharpness for mean error penalty (1 -> 5)
         k_std = 1.0 + step_progress * 4.0   # Sharpness for std error penalty (1 -> 5)
 
@@ -226,21 +237,22 @@ class FilmCastingEnv:
         base_reward = score_mean + score_std  # Max base reward is 1.0
 
         # --- 3. Calculate Improvement-based Reward ---
-        # Reward the agent for reducing the error compared to the previous step.
-        mean_err_improvement = self.last_final_target_error - mean_err
+        # Reward the agent for reducing the error compared to the previous step's dynamic target.
+        mean_err_improvement = self.last_step_target_error - mean_err
         std_improvement = self.last_uniformity_error - std_current
         
         # Scale the improvement to a small bonus/penalty
-        improvement_reward = (mean_err_improvement / max_mean_err) * 0.1 + \
-                             (std_improvement / max_std) * 0.1
+        improvement_reward = (mean_err_improvement / max_mean_err) * 1 + \
+                             (std_improvement / max_std) * 2
         
         # --- 4. Calculate Final Step Bonus ---
         final_bonus = 0.0
         if done:
+            # For the final bonus, calculate error against the TRUE final target
+            final_mean_err = float(abs(mean_current_temp - self.target_temp_kelvin))
             # Give a significant smooth bonus for achieving a good final state
-            # The bonus is higher if the final error and std are very low
-            if mean_err < 4.0 and std_current < 0.5:
-                final_mean_score = np.exp(-0.1 * mean_err) # Decays slowly
+            if final_mean_err < 4.0 and std_current < 0.5:
+                final_mean_score = np.exp(-0.1 * final_mean_err) # Decays slowly
                 final_std_score = np.exp(-0.5 * std_current) # Decays faster
                 final_bonus = 1.0 * final_mean_score * final_std_score
 
@@ -248,11 +260,11 @@ class FilmCastingEnv:
         total_reward = base_reward + improvement_reward + final_bonus
         
         # --- 6. Update last errors for the next step's calculation ---
-        self.last_final_target_error = mean_err
+        self.last_step_target_error = mean_err
         self.last_uniformity_error = std_current
 
         # Log for debugging
-        print(f"Step {self.current_step}/{self.n_rolls} - Reward: {total_reward:.4f} (Base: {base_reward:.2f}, Improv: {improvement_reward:.2f}, Bonus: {final_bonus:.2f}) | Mean Err: {mean_err:.2f}K, Std: {std_current:.2f}K")
+        print(f"Step {self.current_step}/{self.n_rolls} - Target: {current_step_target_temp:.2f}K | Reward: {total_reward:.4f} (Base: {base_reward:.2f}, Improv: {improvement_reward:.2f}, Bonus: {final_bonus:.2f}) | Mean Err: {mean_err:.2f}K, Std: {std_current:.2f}K")
 
         return float(np.clip(total_reward, -1.0, 2.0)) # Clip to a reasonable range
 
@@ -393,7 +405,7 @@ class Critic(nn.Module):
         return self.layer3(x)
 
 class TD3:
-    def __init__(self, state_dim, action_dim, action_low, action_high, device, bc_weight=0.2, log_updated=None, replay_buffer_size=1000000, batch_size=16):
+    def __init__(self, state_dim, action_dim, action_low, action_high, device, bc_weight=0.2, log_updated=None, replay_buffer_size=1000000, batch_size=64):
         self.device = device
         self.log_updated = log_updated
         self.state_dim = state_dim
