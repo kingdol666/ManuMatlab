@@ -24,7 +24,7 @@ class RlOptimizationThread(QThread):
 
     # 在 __init__ 中增加一个高分阈值（你也可以从外部参数传入）
     def __init__(self, num_episodes, n_rolls, target_temp, bounds, checkpoint_path=None, 
-                 use_custom_directions=False, custom_directions=None):
+                 use_custom_directions=False, custom_directions=None, replay_buffer_size=10000):
         super().__init__()
         self.num_episodes = num_episodes
         self.n_rolls = n_rolls
@@ -33,10 +33,11 @@ class RlOptimizationThread(QThread):
         self.checkpoint_path = checkpoint_path
         self.use_custom_directions = use_custom_directions
         self.custom_directions = custom_directions if custom_directions is not None else []
+        self.replay_buffer_size = replay_buffer_size
         self.result_dir = "RLresult"
         self.output_path = os.path.join(self.result_dir, f"best_params_{n_rolls}rolls_{num_episodes}eps.json")
         self._is_running = True
-        self.high_score_threshold = 450  # 仅当奖励高于此阈值时，更新最佳动作
+        self.high_score_threshold = 5  # 仅当奖励高于此阈值时，更新最佳动作
 
     def stop(self):
         """请求停止线程"""
@@ -47,6 +48,12 @@ class RlOptimizationThread(QThread):
         """执行优化任务，并在每个 episode 后发射信号"""
         os.makedirs(self.result_dir, exist_ok=True)
         matlab_step_counter = 0  # 初始化MATLAB调用计数器
+        
+        agent = None
+        rewards = []
+        episode = 0
+        completed_successfully = False
+        
         try:
             device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
             self.log_updated.emit(f"Using device: {device}", "info")
@@ -62,7 +69,7 @@ class RlOptimizationThread(QThread):
                 custom_directions=self.custom_directions
             )
             agent = TD3(state_dim=env.state_dim, action_dim=env.action_dim,
-                        action_low=env.action_low, action_high=env.action_high, device=device)
+                        action_low=env.action_low, action_high=env.action_high, device=device, log_updated=self.log_updated, replay_buffer_size=self.replay_buffer_size)
             
             rewards, best_reward, best_params = [], -np.inf, None
             best_action_history = None # To store the sequence of actions from the best episode
@@ -91,7 +98,7 @@ class RlOptimizationThread(QThread):
                         custom_directions=self.custom_directions
                     )
                     agent = TD3(state_dim=env.state_dim, action_dim=env.action_dim,
-                                action_low=env.action_low, action_high=env.action_high, device=device)
+                                action_low=env.action_low, action_high=env.action_high, device=device, log_updated=self.log_updated, replay_buffer_size=self.replay_buffer_size)
 
                     # Now, load the full state (weights, buffer, etc.)
                     _, rewards, start_episode = load_training_state(self.checkpoint_path, agent)
@@ -99,8 +106,9 @@ class RlOptimizationThread(QThread):
                 else:
                     self.log_updated.emit("加载检查点失败，开始新的训练。", "warning")
 
+            episode = start_episode  # Ensure episode counter is correct before training starts
             # --- 数据预采集阶段 ---
-            pre_collect_size = 128 # 增加预
+            pre_collect_size = self.replay_buffer_size   # 增加预采集数据量
             if not self.checkpoint_path or len(agent.replay_buffer) < pre_collect_size:
                 self.log_updated.emit(f"经验池大小不足 {pre_collect_size}，正在进行数据预采集...", "info")
             while len(agent.replay_buffer) < pre_collect_size:
@@ -119,7 +127,11 @@ class RlOptimizationThread(QThread):
                         self.log_updated.emit("MATLAB引擎重启完成。", "info")
                         break
                     
-                    agent.push(state, action, reward, next_state, done)
+                    # prefer normalized reward if env provides it in info
+                    push_reward = reward
+                    if isinstance(_, dict) and 'norm_reward' in _:
+                        push_reward = _['norm_reward']
+                    agent.push(state, action, push_reward, next_state, done)
                     state = next_state
                     if done: break
                 
@@ -148,22 +160,6 @@ class RlOptimizationThread(QThread):
             for episode in range(start_episode, self.num_episodes):
                 if not self._is_running:
                     self.log_updated.emit("优化过程已被用户中断。", "warning")
-                    # --- 保存中断时的状态 ---
-                    self.log_updated.emit("正在保存中断前的训练状态...", "info")
-                    training_params = {
-                        'num_episodes': self.num_episodes,
-                        'n_rolls': self.n_rolls,
-                        'target_temp': self.target_temp,
-                        'bounds': self.bounds,
-                        'use_custom_directions': self.use_custom_directions,
-                        'custom_directions': self.custom_directions
-                    }
-                    save_dir = "modelSave"
-                    if not os.path.exists(save_dir):
-                        os.makedirs(save_dir)
-                    checkpoint_save_path = os.path.join(save_dir, f"training_state_{self.n_rolls}rolls_{self.num_episodes}eps.json")
-                    save_training_state(agent, training_params, rewards, episode, checkpoint_save_path)
-                    self.log_updated.emit(f"训练状态已保存至 {checkpoint_save_path}", "success")
                     break
 
                 state = env.reset()
@@ -186,34 +182,42 @@ class RlOptimizationThread(QThread):
                         break  # 中断当前 episode 的内部循环
 
                     # Store the experience in the current trajectory as well as the main buffer
-                    current_trajectory.append((state, action, reward, next_state, done))
-                    agent.push(state, action, reward, next_state, done)
+                    # prefer normalized reward if env provides it in info
+                    info_dict = _
+                    push_reward = reward
+                    if isinstance(info_dict, dict) and 'norm_reward' in info_dict:
+                        push_reward = info_dict['norm_reward']
+                    current_trajectory.append((state, action, push_reward, next_state, done))
+                    agent.push(state, action, push_reward, next_state, done)
+                    
+                    # --- Train the agent after each step ---
+                    if self._is_running:
+                        agent.train(best_trajectories)
+
                     state = next_state
                     episode_reward += reward
                     if done:
                         break
                 
-                # --- 在每个 Episode 结束后进行训练 ---
-                if self._is_running and episode_reward > -999: # Do not train on failed episodes
-                    # Perform a single training step, leveraging the best_trajectories for prioritized replay
-                    agent.train(best_trajectories)
-
                 matlab_step_counter += 1 # 每个episode结束后计数器+1
                 
                 rewards.append(episode_reward)
                 
-                if episode_reward > best_reward and episode_reward >= self.high_score_threshold:
+                if episode_reward > best_reward:
                     best_reward = episode_reward
                     best_params = env.action_history
-                    best_action_history = env.action_history.copy()  # 只保存高分episode的动作作为引导策略
-                    
-                    # Add the new best trajectory and keep the list sorted
-                    best_trajectories.append(current_trajectory)
-                    best_trajectories = sorted(best_trajectories, key=lambda traj: sum(exp[2] for exp in traj), reverse=True)
-                    
-                    # Keep only the top 4
-                    if len(best_trajectories) > 4:
-                        best_trajectories = best_trajectories[:4]
+
+                    # For high-scoring episodes, save their trajectories for behavioral cloning
+                    if episode_reward > self.high_score_threshold:
+                        best_action_history = env.action_history.copy()  # 只保存高分episode的动作作为引导策略
+                        
+                        # Add the new best trajectory and keep the list sorted
+                        best_trajectories.append(current_trajectory)
+                        best_trajectories = sorted(best_trajectories, key=lambda traj: sum(exp[2] for exp in traj), reverse=True)
+                        
+                        # Keep only the top 4
+                        if len(best_trajectories) > 4:
+                            best_trajectories = best_trajectories[:4]
                     
                     # --- Instantly save best parameters and plot upon finding a better solution ---
                     self.log_updated.emit(f"发现新的最优奖励: {best_reward:.4f}！正在保存参数和模型权重...", "success")
@@ -253,7 +257,11 @@ class RlOptimizationThread(QThread):
                                 matlab_step_counter = 0
                                 self.log_updated.emit("MATLAB引擎重启完成。", "info")
                                 return None
-                            agent.push(s, a, r, ns, d)
+                            info_dict = _
+                            push_r = r
+                            if isinstance(info_dict, dict) and 'norm_reward' in info_dict:
+                                push_r = info_dict['norm_reward']
+                            agent.push(s, a, push_r, ns, d)
                             s = ns
                             ep_r += r
                             if d: break
@@ -326,8 +334,9 @@ class RlOptimizationThread(QThread):
                 json_path = self.output_path
                 plot_path = os.path.join(self.result_dir, f"rl_reward_curve_{self.n_rolls}rolls_{self.num_episodes}eps.png")
                 self.optimization_finished.emit(json_path, plot_path)
+                completed_successfully = True
             elif not self._is_running:
-                pass
+                self.log_updated.emit("优化过程被用户停止。", "info")
             else:
                 self.log_updated.emit("未能找到有效的最优参数。", "warning")
 
@@ -339,6 +348,22 @@ class RlOptimizationThread(QThread):
             }
             self.error_occurred.emit(error_info)
         finally:
+            if not completed_successfully and agent is not None:
+                self.log_updated.emit("优化未完成，正在保存当前训练状态...", "warning")
+                training_params = {
+                    'num_episodes': self.num_episodes,
+                    'n_rolls': self.n_rolls,
+                    'target_temp': self.target_temp,
+                    'bounds': self.bounds,
+                    'use_custom_directions': self.use_custom_directions,
+                    'custom_directions': self.custom_directions
+                }
+                save_dir = "modelSave"
+                os.makedirs(save_dir, exist_ok=True)
+                checkpoint_save_path = os.path.join(save_dir, f"training_state_{self.n_rolls}rolls_{self.num_episodes}eps_interrupted.json")
+                save_training_state(agent, training_params, rewards, episode, checkpoint_save_path)
+                self.log_updated.emit(f"训练状态已保存至 {checkpoint_save_path}", "success")
+            
             stop_shared_engine()
             self.log_updated.emit("共享MATLAB引擎已关闭。", "info")
             self.finished.emit()

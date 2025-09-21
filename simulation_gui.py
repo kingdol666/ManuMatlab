@@ -365,7 +365,8 @@ class SimulationGUI(QMainWindow):
                 bounds=params['bounds'],
                 checkpoint_path=params['checkpoint_path'],
                 use_custom_directions=params['use_custom_directions'],
-                custom_directions=params['custom_directions']
+                custom_directions=params['custom_directions'],
+                replay_buffer_size=params['replay_buffer_size']
             )
             self.rl_thread.log_updated.connect(self.update_log)
             self.rl_thread.optimization_finished.connect(self.on_rl_optimization_finished)
@@ -719,6 +720,13 @@ class RlOptimizationDialog(QDialog):
         self.target_temp_input.setValue(25.0)
         self.target_temp_input.setSingleStep(1.0)
         form_layout.addRow("目标温度 (°C):", self.target_temp_input)
+
+        self.pool_size_input = QSpinBox()
+        self.pool_size_input.setRange(1000, 1000000)
+        self.pool_size_input.setValue(10000)
+        self.pool_size_input.setSingleStep(1000)
+        self.pool_size_input.setToolTip("设置用于训练智能体的经验回放池的大小。")
+        form_layout.addRow("经验池大小:", self.pool_size_input)
         
         layout.addWidget(main_params_group)
 
@@ -874,6 +882,7 @@ class RlOptimizationDialog(QDialog):
             "n_rolls": self.n_rolls_input.value(),
             "num_episodes": self.num_episodes_input.value(),
             "target_temp": self.target_temp_input.value(),
+            "replay_buffer_size": self.pool_size_input.value(),
             "bounds": {
                 "temp_min": self.temp_min_input.value(),
                 "temp_max": self.temp_max_input.value(),
