@@ -120,9 +120,8 @@ class RlOptimizationThread(QThread):
                     next_state, reward, done, _ = env.step(action)
 
                     if reward < -999: # Check for simulation error
-                        self.log_updated.emit(f"数据采集中检测到异常奖励值 ({reward:.2f})。", "error")
-                        self.log_updated.emit("正在重启MATLAB引擎...", "warning")
-                        stop_shared_engine()
+                        self.log_updated.emit(f"数据采集中检测到异常奖励值 ({reward:.2f})，重启MATLAB以恢复。", "error")
+                        restart_shared_engine()
                         matlab_step_counter = 0
                         self.log_updated.emit("MATLAB引擎重启完成。", "info")
                         break
@@ -176,9 +175,10 @@ class RlOptimizationThread(QThread):
                     
                     # 检查奖励值是否异常 (包括超时)
                     if reward < -999:
-                        self.log_updated.emit(f"检测到异常奖励值 ({reward:.2f})，可能表示MATLAB模拟出错或超时。", "error")
+                        self.log_updated.emit(f"检测到异常奖励值 ({reward:.2f})，重启MATLAB以恢复。", "error")
                         self.log_updated.emit("正在跳过当前回合，此经验将不会被学习。", "warning")
-                        stop_shared_engine()
+                        restart_shared_engine()
+                        matlab_step_counter = 0
                         break  # 中断当前 episode 的内部循环
 
                     # Store the experience in the current trajectory as well as the main buffer
@@ -206,21 +206,17 @@ class RlOptimizationThread(QThread):
                 if episode_reward > best_reward:
                     best_reward = episode_reward
                     best_params = env.action_history
+                    self.log_updated.emit(f"发现新的最优奖励: {best_reward:.4f}！正在保存参数和模型权重...", "success")
 
-                    # For high-scoring episodes, save their trajectories for behavioral cloning
-                    if episode_reward > self.high_score_threshold:
-                        best_action_history = env.action_history.copy()  # 只保存高分episode的动作作为引导策略
-                        
-                        # Add the new best trajectory and keep the list sorted
-                        best_trajectories.append(current_trajectory)
-                        best_trajectories = sorted(best_trajectories, key=lambda traj: sum(exp[2] for exp in traj), reverse=True)
-                        
-                        # Keep only the top 4
-                        if len(best_trajectories) > 4:
-                            best_trajectories = best_trajectories[:4]
+                    # Update best trajectories for behavioral cloning whenever a new best reward is found
+                    best_trajectories.append(current_trajectory)
+                    best_trajectories = sorted(best_trajectories, key=lambda traj: sum(exp[2] for exp in traj), reverse=True)
+                    
+                    # Keep only the top 4
+                    if len(best_trajectories) > 4:
+                        best_trajectories = best_trajectories[:4]
                     
                     # --- Instantly save best parameters and plot upon finding a better solution ---
-                    self.log_updated.emit(f"发现新的最优奖励: {best_reward:.4f}！正在保存参数和模型权重...", "success")
                     save_best_params_as_json(best_params, self.output_path)
                     
                     # Save the best model weights
@@ -252,8 +248,8 @@ class RlOptimizationThread(QThread):
                             a = np.random.uniform(low=env.action_low, high=env.action_high, size=env.action_dim).astype(np.float32)
                             ns, r, d, _ = env.step(a)
                             if r < -999:
-                                self.log_updated.emit(f"探索过程中检测到异常奖励值 ({r:.2f})，正在重启MATLAB引擎...", "error")
-                                stop_shared_engine()
+                                self.log_updated.emit(f"探索过程中检测到异常奖励值 ({r:.2f})，重启MATLAB以恢复。", "error")
+                                restart_shared_engine()
                                 matlab_step_counter = 0
                                 self.log_updated.emit("MATLAB引擎重启完成。", "info")
                                 return None

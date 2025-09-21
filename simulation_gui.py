@@ -722,13 +722,19 @@ class RlOptimizationDialog(QDialog):
         form_layout.addRow("目标温度 (°C):", self.target_temp_input)
 
         self.pool_size_input = QSpinBox()
-        self.pool_size_input.setRange(1000, 1000000)
+        self.pool_size_input.setRange(10, 100000)
         self.pool_size_input.setValue(10000)
         self.pool_size_input.setSingleStep(1000)
         self.pool_size_input.setToolTip("设置用于训练智能体的经验回放池的大小。")
         form_layout.addRow("经验池大小:", self.pool_size_input)
         
         layout.addWidget(main_params_group)
+        
+        # --- 按钮 ---
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
+        buttons.accepted.connect(self.accept)
+        buttons.rejected.connect(self.reject)
+        layout.addWidget(buttons)
 
         # --- 动作范围参数 ---
         action_params_group = QGroupBox("动作参数范围 (Action Space)")

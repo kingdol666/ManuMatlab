@@ -51,15 +51,6 @@ def create_run_tab(main_window):
     control_layout.addWidget(main_window.rl_stop_button)
     
     control_layout.addStretch()
-
-    # --- Experience Pool Size ---
-    pool_size_layout = QHBoxLayout()
-    pool_size_label = QLabel("经验池大小:")
-    main_window.pool_size_input = QLineEdit("10000") # Default value
-    main_window.pool_size_input.setFixedWidth(80)
-    pool_size_layout.addWidget(pool_size_label)
-    pool_size_layout.addWidget(main_window.pool_size_input)
-    control_layout.addLayout(pool_size_layout)
     
     # 添加进度条
     progress_layout = QVBoxLayout()
