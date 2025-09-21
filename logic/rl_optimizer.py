@@ -207,8 +207,11 @@ class FilmCastingEnv:
         std_current = float(np.std(current_temp_distribution))
 
         # --- 1. Define Normalization and Reward Parameters ---
-        max_mean_err = 50.0  # Max expected error in Kelvin for normalization
-        max_std = 5.0      # Max expected std dev in Kelvin for normalization
+        max_mean_err = 12.0  # Max expected error in Kelvin for normalization
+        max_std = 2.0      # Max expected std dev in Kelvin for normalization
+        k_base = 5.0
+        k_mean = k_base + step_progress * 10.0   # 5 -> 15
+        k_std = k_base + step_progress * 10.0
 
         # --- 2. Calculate Dynamic Step-wise Target and Progressive Reward ---
         step_progress = self.current_step / self.n_rolls
@@ -231,20 +234,27 @@ class FilmCastingEnv:
         std_norm = np.clip(std_current / max_std, 0.0, 1.0)
 
         # Calculate exponential scores for mean and std, each contributing up to 0.5
-        score_mean = 0.5 * np.exp(-k_mean * mean_err_norm)
-        score_std = 0.5 * np.exp(-k_std * std_norm)
-        
+        score_mean = 0.5 * np.exp(-k_mean * (mean_err_norm ** 0.6))   # p=0.6 放大低误差差异
+        score_std  = 0.5 * np.exp(-k_std  * (std_norm  ** 0.6))
+
         base_reward = score_mean + score_std  # Max base reward is 1.0
 
         # --- 3. Calculate Improvement-based Reward ---
         # Reward the agent for reducing the error compared to the previous step's dynamic target.
-        mean_err_improvement = self.last_step_target_error - mean_err
-        std_improvement = self.last_uniformity_error - std_current
-        
-        # Scale the improvement to a small bonus/penalty
-        improvement_reward = (mean_err_improvement / max_mean_err) * 1 + \
-                             (std_improvement / max_std) * 2
-        
+        eps = 1e-6
+        delta_mean_rel = 0.0
+        delta_std_rel = 0.0
+        if hasattr(self, 'last_step_target_error') and self.last_step_target_error is not None:
+            delta_mean_rel = (self.last_step_target_error - mean_err) / (abs(self.last_step_target_error) + eps)
+        if hasattr(self, 'last_uniformity_error') and self.last_uniformity_error is not None:
+            delta_std_rel = (self.last_uniformity_error - std_current) / (abs(self.last_uniformity_error) + eps)
+
+        improvement_reward = 0.6 * delta_mean_rel + 0.4 * delta_std_rel
+
+        total_reward = base_reward + improvement_reward
+        # 把尺度映射到 [-1,1] 便于训练
+        total_reward = float(np.tanh(total_reward * 1.2))
+
         # --- 4. Calculate Final Step Bonus ---
         final_bonus = 0.0
         if done:
