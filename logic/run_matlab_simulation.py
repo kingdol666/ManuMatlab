@@ -230,7 +230,9 @@ def run_matlab_script(script_path, output_vars, config, input_vars=None):
     except Exception as e:
         print(f"MATLAB 脚本 {script_path} 运行时发生非超时严重错误: {e}")
         print("错误已捕获，正在尝试重启MATLAB引擎以恢复...")
-        restart_shared_engine()
+        # 重启MATLAB引擎并重新执行脚本
+        stop_all_matlab_engines()
+        start_shared_engine()
         print("MATLAB引擎重启完成。")
         raise  # 重新引发异常，以便上层调用者知道本次执行失败
     finally:

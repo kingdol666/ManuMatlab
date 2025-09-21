@@ -1,0 +1,62 @@
+[
+  {
+    "script_type": "升温",
+    "roll_direction": "初始辊",
+    "T_GunWen": 338.4761657714844,
+    "t_up": 0.530972957611084
+  },
+  {
+    "script_type": "降温",
+    "roll_direction": "初始辊",
+    "T_GunWen": 338.4761657714844,
+    "t_up": 0.708099365234375
+  },
+  {
+    "script_type": "升温",
+    "roll_direction": "逆向辊",
+    "T_GunWen": 343.2799987792969,
+    "t_up": 0.5856439471244812
+  },
+  {
+    "script_type": "降温",
+    "roll_direction": "初始辊",
+    "T_GunWen": 343.2799987792969,
+    "t_up": 0.7516681551933289
+  },
+  {
+    "script_type": "升温",
+    "roll_direction": "正向辊",
+    "T_GunWen": 345.3211975097656,
+    "t_up": 0.47787168622016907
+  },
+  {
+    "script_type": "降温",
+    "roll_direction": "初始辊",
+    "T_GunWen": 345.3211975097656,
+    "t_up": 0.7846090793609619
+  },
+  {
+    "script_type": "升温",
+    "roll_direction": "逆向辊",
+    "T_GunWen": 341.96221923828125,
+    "t_up": 0.5392029285430908
+  },
+  {
+    "script_type": "降温",
+    "roll_direction": "初始辊",
+    "T_GunWen": 341.96221923828125,
+    "t_up": 0.8193367719650269
+  },
+  {
+    "script_type": "升温",
+    "roll_direction": "正向辊",
+    "T_GunWen": 339.2001037597656,
+    "t_up": 0.5274979472160339
+  },
+  {
+    "script_type": "降温",
+    "roll_direction": "初始辊",
+    "T_GunWen": 339.2001037597656,
+    "t_up": 0.753404974937439
+  }
+]
