@@ -66,5 +66,5 @@ BT4=[BE4,ones(size(BE4))*4];
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 clear AAA Dx Dy BE1 BE2 BE3 BE4 
 clear H L i j k Nx Ny
-rectangle_grid(JMV,JXYV);
+% rectangle_grid(JMV,JXYV);
 save mesh

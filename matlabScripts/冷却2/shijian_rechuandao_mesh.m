@@ -74,7 +74,7 @@ try
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     clear AAA Dx Dy BE1 BE2 BE3 BE4 
     clear H L i j k Nx Ny
-    rectangle_grid(JMV,JXYV);
+    % rectangle_grid(JMV,JXYV);
     save mesh
 catch ME
     % Rethrow the error with a more descriptive message for the Python side

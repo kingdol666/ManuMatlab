@@ -272,22 +272,6 @@ class RlOptimizationThread(QThread):
                     # 重置计数器并继续训练
                     no_improve_counter = 0
 
-                # --- Save good policies based on score gradient ---
-                if episode_reward > 650:
-                    base_dir = os.path.join(self.result_dir, "good_policies")
-                    if episode_reward > 850:
-                        policy_dir = os.path.join(base_dir, "850+")
-                    elif episode_reward > 750:
-                        policy_dir = os.path.join(base_dir, "750-850")
-                    else: # 650-750
-                        policy_dir = os.path.join(base_dir, "650-750")
-                    
-                    os.makedirs(policy_dir, exist_ok=True)
-                    filename = f"episode_{episode + 1}_reward_{episode_reward:.2f}.json"
-                    filepath = os.path.join(policy_dir, filename)
-                    save_best_params_as_json(env.action_history, filepath)
-                    self.log_updated.emit(f"高分策略已保存至: {filepath}", "success")
-
                 # Log progress and replay buffer size
                 progress_msg = (
                     f"Episode {episode + 1}/{self.num_episodes} | "
@@ -314,6 +298,8 @@ class RlOptimizationThread(QThread):
                     checkpoint_save_path = os.path.join(save_dir, f"training_state_{self.n_rolls}rolls_{self.num_episodes}eps.json")
                     save_training_state(agent, training_params, rewards, episode + 1, checkpoint_save_path)
                     self.log_updated.emit(f"训练状态已保存至 {checkpoint_save_path}", "success")
+                    plot_path = os.path.join(self.result_dir, f"rl_reward_curve_{self.n_rolls}rolls_{self.num_episodes}eps.png")
+                    save_reward_plot(rewards, plot_path)
 
                 # --- 周期性重启MATLAB引擎 ---
                 if matlab_step_counter >= MATLAB_RESTART_INTERVAL:

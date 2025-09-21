@@ -207,11 +207,8 @@ class FilmCastingEnv:
         std_current = float(np.std(current_temp_distribution))
 
         # --- 1. Define Normalization and Reward Parameters ---
-        max_mean_err = 12.0  # Max expected error in Kelvin for normalization
-        max_std = 2.0      # Max expected std dev in Kelvin for normalization
-        k_base = 5.0
-        k_mean = k_base + step_progress * 10.0   # 5 -> 15
-        k_std = k_base + step_progress * 10.0
+        max_mean_err = 50.0  # Max expected error in Kelvin for normalization
+        max_std = 5.0      # Max expected std dev in Kelvin for normalization
 
         # --- 2. Calculate Dynamic Step-wise Target and Progressive Reward ---
         step_progress = self.current_step / self.n_rolls
@@ -234,27 +231,26 @@ class FilmCastingEnv:
         std_norm = np.clip(std_current / max_std, 0.0, 1.0)
 
         # Calculate exponential scores for mean and std, each contributing up to 0.5
-        score_mean = 0.5 * np.exp(-k_mean * (mean_err_norm ** 0.6))   # p=0.6 放大低误差差异
-        score_std  = 0.5 * np.exp(-k_std  * (std_norm  ** 0.6))
-
+        score_mean = 0.5 * np.exp(-k_mean * mean_err_norm)
+        score_std = 0.5 * np.exp(-k_std * std_norm)
+        
         base_reward = score_mean + score_std  # Max base reward is 1.0
 
         # --- 3. Calculate Improvement-based Reward ---
         # Reward the agent for reducing the error compared to the previous step's dynamic target.
-        eps = 1e-6
-        delta_mean_rel = 0.0
-        delta_std_rel = 0.0
-        if hasattr(self, 'last_step_target_error') and self.last_step_target_error is not None:
-            delta_mean_rel = (self.last_step_target_error - mean_err) / (abs(self.last_step_target_error) + eps)
-        if hasattr(self, 'last_uniformity_error') and self.last_uniformity_error is not None:
-            delta_std_rel = (self.last_uniformity_error - std_current) / (abs(self.last_uniformity_error) + eps)
-
-        improvement_reward = 0.6 * delta_mean_rel + 0.4 * delta_std_rel
-
-        total_reward = base_reward + improvement_reward
-        # 把尺度映射到 [-1,1] 便于训练
-        total_reward = float(np.tanh(total_reward * 1.2))
-
+        mean_err_improvement = self.last_step_target_error - mean_err
+        std_improvement = self.last_uniformity_error - std_current
+        
+        # Scale the improvement to a small bonus/penalty
+        #如果不是第一部
+        if self.current_step > 0:
+            # Only calculate improvement reward if not the first step
+            improvement_reward = (mean_err_improvement / max_mean_err) * 0.7 + \
+                                 (std_improvement / max_std) * 0.7
+        else:
+            # For the first step, no improvement reward
+            improvement_reward = 0.0
+        
         # --- 4. Calculate Final Step Bonus ---
         final_bonus = 0.0
         if done:
@@ -678,21 +674,37 @@ def save_training_state(agent, training_params, rewards, episode, output_path):
     """Saves the complete training state, including the PER buffer's priorities."""
     # Serialize the PER buffer state, including the SumTree
     replay_buffer_data_list = [
-        (s.tolist(), a.tolist(), r, ns.tolist(), d)
+        (s.tolist(), a.tolist(), float(r), ns.tolist(), float(d))
         for s, a, r, ns, d in agent.replay_buffer
     ]
     replay_buffer_state = {
         'tree': agent.replay_buffer.tree.tree.tolist(),
         'data': replay_buffer_data_list,
-        'n_entries': agent.replay_buffer.tree.n_entries,
-        'write': agent.replay_buffer.tree.write,
-        'max_priority': agent.replay_buffer.max_priority
+        'n_entries': int(agent.replay_buffer.tree.n_entries),
+        'write': int(agent.replay_buffer.tree.write),
+        'max_priority': float(agent.replay_buffer.max_priority)
     }
     
+    # Convert numpy types to Python native types for JSON serialization
+    def convert_to_json_serializable(obj):
+        """递归转换numpy类型为Python原生类型"""
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        elif isinstance(obj, (np.float32, np.float64)):
+            return float(obj)
+        elif isinstance(obj, (np.int32, np.int64)):
+            return int(obj)
+        elif isinstance(obj, dict):
+            return {key: convert_to_json_serializable(value) for key, value in obj.items()}
+        elif isinstance(obj, list):
+            return [convert_to_json_serializable(item) for item in obj]
+        else:
+            return obj
+    
     state = {
-        'training_params': training_params,
-        'rewards': rewards,
-        'episode': episode,
+        'training_params': convert_to_json_serializable(training_params),
+        'rewards': [float(r) for r in rewards],  # 确保rewards中的所有值都是Python float
+        'episode': int(episode),
         'replay_buffer_state': replay_buffer_state
     }
     
@@ -714,28 +726,100 @@ def load_training_state(filepath, agent):
     with open(filepath, 'r', encoding='utf-8') as f:
         state = json.load(f)
     
-    training_params = state['training_params']
-    rewards = state['rewards']
-    start_episode = state['episode']
+    # Convert loaded data to ensure proper types
+    def ensure_proper_types(obj):
+        """确保加载的数据具有正确的Python类型"""
+        if isinstance(obj, dict):
+            return {key: ensure_proper_types(value) for key, value in obj.items()}
+        elif isinstance(obj, list):
+            return [ensure_proper_types(item) for item in obj]
+        else:
+            return obj
+    
+    training_params = ensure_proper_types(state['training_params'])
+    rewards = [float(r) for r in state['rewards']]  # 确保rewards是float列表
+    start_episode = int(state['episode'])
     
     # Load the PER buffer state
     replay_buffer_state = state.get('replay_buffer_state')
     if replay_buffer_state:
-        agent.replay_buffer.tree.tree = np.array(replay_buffer_state['tree'])
+        # 检查保存的经验池大小与当前经验池大小是否匹配
+        saved_capacity = len(replay_buffer_state['data'])
+        current_capacity = agent.replay_buffer.capacity
+        saved_n_entries = int(replay_buffer_state['n_entries'])
         
-        # Reconstruct data with numpy arrays
-        loaded_data = replay_buffer_state['data']
-        agent.replay_buffer.tree.data = np.zeros(agent.replay_buffer.capacity, dtype=object)
-        for i, (s_list, a_list, r, ns_list, d) in enumerate(loaded_data):
-            state_np = np.array(s_list, dtype=np.float32)
-            action_np = np.array(a_list, dtype=np.float32)
-            next_state_np = np.array(ns_list, dtype=np.float32)
-            agent.replay_buffer.tree.data[i] = (state_np, action_np, r, next_state_np, d)
+        print(f"Loading replay buffer: saved_capacity={saved_capacity}, current_capacity={current_capacity}, saved_entries={saved_n_entries}")
+        
+        # 如果容量不匹配，需要适配处理
+        if saved_capacity != current_capacity or saved_n_entries > current_capacity:
+            print(f"Warning: Replay buffer size mismatch. Saved: {saved_capacity}, Current: {current_capacity}")
+            print("Adapting replay buffer to new size...")
+            
+            # 重新创建适合当前容量的缓冲区
+            agent.replay_buffer.clear()
+            
+            # 加载数据，但限制在当前容量内
+            loaded_data = replay_buffer_state['data']
+            max_entries_to_load = min(len(loaded_data), current_capacity, saved_n_entries)
+            
+            # 如果保存的数据太多，只取最新的数据
+            if len(loaded_data) > current_capacity:
+                # 取最后的 current_capacity 个经验
+                start_idx = len(loaded_data) - current_capacity
+                loaded_data = loaded_data[start_idx:]
+                print(f"Taking the last {current_capacity} experiences from {len(replay_buffer_state['data'])} saved experiences")
+            
+            # 逐个添加经验到新的缓冲区
+            for i, (s_list, a_list, r, ns_list, d) in enumerate(loaded_data[:max_entries_to_load]):
+                state_np = np.array(s_list, dtype=np.float32)
+                action_np = np.array(a_list, dtype=np.float32)
+                reward_val = float(r)
+                next_state_np = np.array(ns_list, dtype=np.float32)
+                done_val = float(d)
+                agent.replay_buffer.push(state_np, action_np, reward_val, next_state_np, done_val)
+            
+            print(f"Successfully loaded {len(agent.replay_buffer)} experiences into new buffer")
+            
+        else:
+            # 容量匹配，可以直接加载
+            # 重建 SumTree
+            saved_tree = replay_buffer_state['tree']
+            if len(saved_tree) == len(agent.replay_buffer.tree.tree):
+                agent.replay_buffer.tree.tree = np.array(saved_tree, dtype=np.float64)
+            else:
+                print("Warning: SumTree size mismatch, rebuilding priorities...")
+                agent.replay_buffer.clear()
+                # 重新添加所有经验
+                for s_list, a_list, r, ns_list, d in replay_buffer_state['data'][:saved_n_entries]:
+                    state_np = np.array(s_list, dtype=np.float32)
+                    action_np = np.array(a_list, dtype=np.float32)
+                    reward_val = float(r)
+                    next_state_np = np.array(ns_list, dtype=np.float32)
+                    done_val = float(d)
+                    agent.replay_buffer.push(state_np, action_np, reward_val, next_state_np, done_val)
+                print(f"Rebuilt replay buffer with {len(agent.replay_buffer)} experiences")
+                return training_params, rewards, start_episode
+            
+            # 重建数据数组
+            loaded_data = replay_buffer_state['data']
+            agent.replay_buffer.tree.data = np.zeros(agent.replay_buffer.capacity, dtype=object)
+            
+            for i, (s_list, a_list, r, ns_list, d) in enumerate(loaded_data[:saved_n_entries]):
+                if i >= agent.replay_buffer.capacity:
+                    break
+                state_np = np.array(s_list, dtype=np.float32)
+                action_np = np.array(a_list, dtype=np.float32)
+                reward_val = float(r)
+                next_state_np = np.array(ns_list, dtype=np.float32)
+                done_val = float(d)
+                agent.replay_buffer.tree.data[i] = (state_np, action_np, reward_val, next_state_np, done_val)
 
-        agent.replay_buffer.tree.n_entries = replay_buffer_state['n_entries']
-        agent.replay_buffer.tree.write = replay_buffer_state['write']
-        agent.replay_buffer.max_priority = replay_buffer_state.get('max_priority', 1.0)
-        print(f"PER buffer loaded with {agent.replay_buffer.tree.n_entries} experiences and their priorities.")
+            # 设置缓冲区状态，确保不超过当前容量
+            agent.replay_buffer.tree.n_entries = min(saved_n_entries, current_capacity)
+            agent.replay_buffer.tree.write = min(int(replay_buffer_state['write']), current_capacity - 1)
+            agent.replay_buffer.max_priority = float(replay_buffer_state.get('max_priority', 1.0))
+            
+            print(f"PER buffer loaded with {agent.replay_buffer.tree.n_entries} experiences and their priorities.")
     else:
         # Fallback for old save format
         replay_buffer_list = state.get('replay_buffer', [])
@@ -743,8 +827,10 @@ def load_training_state(filepath, agent):
         for s_list, a_list, r, ns_list, d in replay_buffer_list:
             state_np = np.array(s_list, dtype=np.float32)
             action_np = np.array(a_list, dtype=np.float32)
+            reward_val = float(r)
             next_state_np = np.array(ns_list, dtype=np.float32)
-            agent.push(state_np, action_np, r, next_state_np, d)
+            done_val = float(d)
+            agent.push(state_np, action_np, reward_val, next_state_np, done_val)
         print(f"Replay buffer loaded with {len(agent.replay_buffer)} experiences (old format, priorities reset).")
 
     # Load model weights from the .pth file

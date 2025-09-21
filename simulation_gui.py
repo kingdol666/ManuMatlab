@@ -381,14 +381,56 @@ class SimulationGUI(QMainWindow):
         self.update_log(f"RL optimization finished! Best parameters saved to {json_path}", "success")
         QMessageBox.information(self, "Optimization Complete", f"Optimal process parameters saved to:\n{json_path}\n\nYou can now load them from the 'Model Management' tab.")
         
-        # 在主线程中显示奖励曲线图
+        # 使用通用方法显示奖励曲线图
+        self.display_image_in_result_label(plot_path, switch_to_tab=True)
+
+    def display_image_in_result_label(self, image_path, switch_to_tab=True):
+        """
+        在结果标签中显示图像的通用方法
+        
+        Args:
+            image_path: 图像文件路径
+            switch_to_tab: 是否自动切换到结果可视化选项卡
+        
+        Returns:
+            bool: 是否成功显示图像
+        """
         try:
-            pixmap = QPixmap(plot_path)
-            self.result_image_label.setPixmap(pixmap)
-            self.tabs.setCurrentWidget(self.result_tab) # 切换到结果可视化选项卡
-            self.update_log(f"Displaying reward curve from {plot_path}", "info")
+            if not os.path.exists(image_path):
+                self.update_log(f"图像文件不存在: {image_path}", "error")
+                return False
+            
+            pixmap = QPixmap(image_path)
+            if pixmap.isNull():
+                self.update_log(f"无法加载图像: {image_path}", "error")
+                return False
+            
+            # 缩放图像以适应标签大小，保持宽高比
+            if hasattr(self, 'result_image_label') and self.result_image_label.size().width() > 0:
+                scaled_pixmap = pixmap.scaled(
+                    self.result_image_label.size(), 
+                    Qt.AspectRatioMode.KeepAspectRatio, 
+                    Qt.TransformationMode.SmoothTransformation
+                )
+                self.result_image_label.setPixmap(scaled_pixmap)
+            else:
+                # 如果标签尺寸还未确定，直接设置原始图像
+                self.result_image_label.setPixmap(pixmap)
+            
+            if switch_to_tab:
+                # 切换到结果可视化选项卡
+                self.tabs.setCurrentWidget(self.result_tab)
+                
+                # 重要：切换到QStackedWidget中的图像显示页面
+                if hasattr(self, 'result_display_stack'):
+                    self.result_display_stack.setCurrentWidget(self.result_image_label)
+            
+            self.update_log(f"成功显示图像: {os.path.basename(image_path)}", "info")
+            return True
+            
         except Exception as e:
-            self.update_log(f"Failed to display reward curve image: {e}", "error")
+            self.update_log(f"显示图像时出错: {e}", "error")
+            return False
 
     def set_rl_controls_enabled(self, is_finished):
         """Enables or disables controls during RL optimization."""
@@ -729,12 +771,6 @@ class RlOptimizationDialog(QDialog):
         form_layout.addRow("经验池大小:", self.pool_size_input)
         
         layout.addWidget(main_params_group)
-        
-        # --- 按钮 ---
-        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
-        buttons.accepted.connect(self.accept)
-        buttons.rejected.connect(self.reject)
-        layout.addWidget(buttons)
 
         # --- 动作范围参数 ---
         action_params_group = QGroupBox("动作参数范围 (Action Space)")
