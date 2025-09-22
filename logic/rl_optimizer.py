@@ -256,11 +256,14 @@ class FilmCastingEnv:
         if done:
             # For the final bonus, calculate error against the TRUE final target
             final_mean_err = float(abs(mean_current_temp - self.target_temp_kelvin))
-            # Give a significant smooth bonus for achieving a good final state
-            if final_mean_err < 4.0 and std_current < 0.5:
-                final_mean_score = np.exp(-0.1 * final_mean_err) # Decays slowly
-                final_std_score = np.exp(-0.5 * std_current) # Decays faster
-                final_bonus = 1.0 * final_mean_score * final_std_score
+            # final_bonus只有在误差极小时才高，否则迅速衰减
+            if final_mean_err < 2.0 and std_current < 0.3:
+                final_bonus = 2.0 * np.exp(-0.5 * final_mean_err) * np.exp(-1.0 * std_current)
+                final_bonus += 0.5
+            elif final_mean_err < 5.0 and std_current < 0.5:
+                final_bonus = 1.0 * np.exp(-0.2 * final_mean_err) * np.exp(-0.5 * std_current)
+            else:
+                final_bonus = -1.0 * (final_mean_err / 10.0 + std_current)  # 误差大时直接给负分
 
         # --- 5. Combine all reward components ---
         total_reward = base_reward + improvement_reward + final_bonus
@@ -380,43 +383,34 @@ class PrioritizedReplayBuffer:
 class Actor(nn.Module):
     def __init__(self, state_dim, action_dim):
         super(Actor, self).__init__()
-        self.layer1 = nn.Linear(state_dim, 512)
-        self.bn1 = nn.BatchNorm1d(512)
-        self.layer2 = nn.Linear(512, 256)
-        self.bn2 = nn.BatchNorm1d(256)
-        self.dropout = nn.Dropout(0.2)
-        self.layer3 = nn.Linear(256, action_dim)
+        self.layer1 = nn.Linear(state_dim, 256)
+        self.layer2 = nn.Linear(256, 64)
+        self.layer3 = nn.Linear(64, action_dim)
 
     def forward(self, x):
-        x = torch.relu(self.bn1(self.layer1(x)))
-        x = torch.relu(self.bn2(self.layer2(x)))
-        x = self.dropout(x)
+        x = torch.relu(self.layer1(x))
+        x = torch.relu(self.layer2(x))
         return torch.tanh(self.layer3(x))
 
 class Critic(nn.Module):
     def __init__(self, state_dim, action_dim):
         super(Critic, self).__init__()
-        self.layer1 = nn.Linear(state_dim + action_dim, 512)
-        self.bn1 = nn.BatchNorm1d(512)
-        self.layer2 = nn.Linear(512, 256)
-        self.bn2 = nn.BatchNorm1d(256)
-        self.dropout = nn.Dropout(0.2)
-        self.layer3 = nn.Linear(256, 1)
+        self.layer1 = nn.Linear(state_dim + action_dim, 256)
+        self.layer2 = nn.Linear(256, 64)
+        self.layer3 = nn.Linear(64, 1)
 
     def forward(self, x, u):
         xu = torch.cat([x, u], 1)
-        x = torch.relu(self.bn1(self.layer1(xu)))
-        x = torch.relu(self.bn2(self.layer2(x)))
-        x = self.dropout(x)
+        x = torch.relu(self.layer1(xu))
+        x = torch.relu(self.layer2(x))
         return self.layer3(x)
 
 class TD3:
-    def __init__(self, state_dim, action_dim, action_low, action_high, device, bc_weight=0.2, log_updated=None, replay_buffer_size=1000000, batch_size=64):
+    def __init__(self, state_dim, action_dim, action_low, action_high, device, log_updated=None, replay_buffer_size=1000000, batch_size=64):
         self.device = device
         self.log_updated = log_updated
         self.state_dim = state_dim
         self.action_dim = action_dim
-        self.bc_weight = bc_weight
         self.action_low_t = torch.from_numpy(action_low).to(device)
         self.action_high_t = torch.from_numpy(action_high).to(device)
         self.action_low_np = action_low
@@ -426,7 +420,7 @@ class TD3:
         self.actor = Actor(state_dim, action_dim).to(device)
         self.actor_target = Actor(state_dim, action_dim).to(device)
         self.actor_target.load_state_dict(self.actor.state_dict())
-        self.actor_optimizer = optim.Adam(self.actor.parameters(), lr=3e-4)
+        self.actor_optimizer = optim.Adam(self.actor.parameters(), lr=3e-3)
 
         # --- Critic Networks (Twin) ---
         self.critic1 = Critic(state_dim, action_dim).to(device)
@@ -436,12 +430,12 @@ class TD3:
         print(self.critic1)
         self.critic1_target = Critic(state_dim, action_dim).to(device)
         self.critic1_target.load_state_dict(self.critic1.state_dict())
-        self.critic1_optimizer = optim.Adam(self.critic1.parameters(), lr=3e-4)
+        self.critic1_optimizer = optim.Adam(self.critic1.parameters(), lr=3e-3)
 
         self.critic2 = Critic(state_dim, action_dim).to(device)
         self.critic2_target = Critic(state_dim, action_dim).to(device)
         self.critic2_target.load_state_dict(self.critic2.state_dict())
-        self.critic2_optimizer = optim.Adam(self.critic2.parameters(), lr=3e-4)
+        self.critic2_optimizer = optim.Adam(self.critic2.parameters(), lr=3e-3)
 
         # --- Prioritized Experience Replay ---
         self.replay_buffer = PrioritizedReplayBuffer(capacity=replay_buffer_size)
@@ -462,7 +456,7 @@ class TD3:
         # TD3 specific parameters
         self.policy_noise = 0.2
         self.noise_clip = 0.5
-        self.policy_freq = 2
+        self.policy_freq = 1  # 增加训练频率，每次都更新actor
         self.total_it = 0
 
     def _scale_action_torch(self, action_norm_t):
@@ -508,20 +502,6 @@ class TD3:
         # --- Sample from Prioritized Replay Buffer ---
         batch, batch_indices, is_weights = self.replay_buffer.sample(self.batch_size, self.beta)
         
-        # --- Behavioral Cloning (BC) Augmentation ---
-        # If expert trajectories are provided, augment the batch with them
-        if best_trajectories:
-            flat_best_trajectories = [exp for traj in best_trajectories for exp in traj]
-            if flat_best_trajectories:
-                # Replace a portion of the batch with expert data
-                num_expert_samples = min(len(flat_best_trajectories), self.batch_size // 4) # e.g., 25% expert data
-                expert_samples = random.sample(flat_best_trajectories, num_expert_samples)
-                
-                # Replace the first `num_expert_samples` in the batch
-                batch = expert_samples + batch[num_expert_samples:]
-                # For expert data, IS weights are 1.0 as they are always included
-                is_weights[:num_expert_samples] = [1.0] * num_expert_samples
-
         state, action, reward, next_state, done = zip(*batch)
         state = torch.FloatTensor(np.array(state)).to(self.device)
         action = torch.FloatTensor(np.array(action)).to(self.device)
@@ -572,34 +552,11 @@ class TD3:
             action_norm_pred = self.actor(state)
             action_pred = self._scale_action_torch(action_norm_pred)
             q_value_pred = self.critic1(state, action_pred)
-            pg_loss = -q_value_pred.mean()
-
-            # --- Behavioral Cloning (BC) Loss on High-Reward Samples ---
-            bc_loss = 0.0
-            if best_trajectories:
-                # Find which of the current batch samples are from the expert trajectories
-                # This is a simplified check; for robustness, consider a more sophisticated way to tag expert data
-                expert_mask = torch.zeros(self.batch_size, dtype=torch.bool, device=self.device)
-                # Heuristic: check if the reward is high, assuming expert trajectories have higher rewards
-                # A more robust method would be to pass expert flags during sampling
-                # For now, we apply BC loss on the expert samples we added to the batch
-                if 'num_expert_samples' in locals() and num_expert_samples > 0:
-                    expert_mask[:num_expert_samples] = True
-
-                if expert_mask.any():
-                    expert_state = state[expert_mask]
-                    expert_action = action[expert_mask]
-                    
-                    expert_action_pred_norm = self.actor(expert_state)
-                    expert_action_pred = self._scale_action_torch(expert_action_pred_norm)
-                    
-                    bc_loss = nn.MSELoss()(expert_action_pred, expert_action)
-
-            # Combine the losses
-            actor_loss = pg_loss + bc_loss * self.bc_weight
+            actor_loss = -q_value_pred.mean()
 
             self.actor_optimizer.zero_grad()
             actor_loss.backward()
+            torch.nn.utils.clip_grad_norm_(self.actor.parameters(), max_norm=1.0)
             self.actor_optimizer.step()
 
             # Log losses
