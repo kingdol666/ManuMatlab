@@ -459,8 +459,38 @@ class VisualizationManager:
         
         self.pending_frame_data = None
 
+    def _setup_chinese_font_support(self):
+        """设置中文字体支持的辅助方法"""
+        try:
+            import matplotlib.font_manager as fm
+            
+            # 查找系统中可用的中文字体
+            chinese_fonts = ['SimHei', 'Microsoft YaHei', 'SimSun', 'Arial Unicode MS']
+            available_fonts = [f.name for f in fm.fontManager.ttflist]
+            
+            found_font = None
+            for font in chinese_fonts:
+                if font in available_fonts:
+                    found_font = font
+                    break
+            
+            if found_font:
+                plt.rcParams['font.sans-serif'] = [found_font]
+                plt.rcParams['axes.unicode_minus'] = False
+                return found_font
+            else:
+                print("警告：未找到中文字体，可能显示为方块")
+                return 'DejaVu Sans'
+                
+        except Exception as e:
+            print(f"字体设置失败: {e}")
+            return 'DejaVu Sans'
+
     def plot_temperature_profile(self):
-        """Plots the temperature profile of the last column of T_data with enhanced visualization."""
+        """绘制最终温度分布曲线，修复中文乱码问题"""
+        # 首先设置全局中文字体支持
+        chinese_font = self._setup_chinese_font_support()
+        
         if not self.model.visualization_source_data:
             QMessageBox.warning(self.gui, "警告", "没有可用的可视化数据。")
             return
@@ -492,11 +522,9 @@ class VisualizationManager:
             distance = JXYV[valid_indices, 1]
             
             # 提取最后一个时间步的温度数据
-            # 假设T_data的行与JXYV的行对应
             if T_data.shape[0] == JXYV.shape[0]:
                 temperature_profile_kelvin = T_data[valid_indices, -1]
             else:
-                # 如果T_data的行数与BN2的长度匹配，则假定它已经被预先筛选
                 if T_data.shape[0] == len(valid_indices):
                     temperature_profile_kelvin = T_data[:, -1]
                 else:
@@ -505,50 +533,105 @@ class VisualizationManager:
 
             temperature_profile_celsius = temperature_profile_kelvin - 273.15
 
-            plt.style.use('seaborn-v0_8-whitegrid')
+            # 创建对话框
             dialog = QDialog(self.gui)
             dialog.setWindowTitle("最终温度分布")
             dialog.setMinimumSize(800, 600)
             layout = QVBoxLayout(dialog)
             
-            fig = Figure(figsize=(8, 6), dpi=100)
+            # 创建Figure并设置中文字体
+            fig = Figure(figsize=(10, 7), dpi=100)
+            
+            # Figure对象已通过全局设置支持中文字体
+            
             canvas = FigureCanvas(fig)
             layout.addWidget(canvas)
 
             ax = fig.add_subplot(111)
 
-            # Set axis limits with padding
+            # 计算温度统计信息
             temp_min, temp_max = np.min(temperature_profile_celsius), np.max(temperature_profile_celsius)
-            padding = (temp_max - temp_min) * 0.1
+            temp_mean = np.mean(temperature_profile_celsius)
+            temp_std = np.std(temperature_profile_celsius)
+            
+            # 设置坐标轴范围
+            padding = max(5.0, (temp_max - temp_min) * 0.1)  # 至少5度的padding
             ax.set_xlim(temp_min - padding, temp_max + padding)
             ax.set_ylim(np.min(distance), np.max(distance))
 
-            # Add a gradient background
-            xmin, xmax = ax.get_xlim()
-            ymin, ymax = ax.get_ylim()
-            gradient = np.linspace(0, 1, 256).reshape(1, -1)
-            ax.imshow(gradient, aspect='auto', cmap=plt.get_cmap('coolwarm'), 
-                      extent=[xmin, xmax, ymin, ymax], alpha=0.4)
+            # 绘制温度曲线
+            line = ax.plot(temperature_profile_celsius, distance, 
+                          marker='o', markersize=6, linestyle='-', 
+                          linewidth=3, color='#e74c3c', 
+                          markerfacecolor='#c0392b', markeredgecolor='white', 
+                          markeredgewidth=1, label='温度分布')[0]
 
-            # Plot the main temperature curve on top
-            ax.plot(temperature_profile_celsius, distance, marker='o', markersize=5, linestyle='-', 
-                    linewidth=2.5, color='#2c3e50', label='温度分布')
+            # 添加平均温度线
+            ax.axvline(x=temp_mean, color='#3498db', linestyle='--', 
+                      linewidth=2, alpha=0.8, label=f'平均温度: {temp_mean:.1f}°C')
 
-            # Enhance labels and title
-            ax.set_xlabel("温度 (°C)", fontsize=12, fontweight='bold')
-            ax.set_ylabel("距离膜底部距离 (m)", fontsize=12, fontweight='bold')
-            ax.set_title("沿膜厚度方向的最终温度分布", fontsize=16, fontweight='bold', pad=20)
+            # 添加温度范围填充
+            ax.fill_betweenx(distance, temp_mean - temp_std, temp_mean + temp_std, 
+                           alpha=0.2, color='#3498db', label=f'±1σ范围: ±{temp_std:.1f}°C')
+            
+            # 添加温度梯度可视化（颜色映射）
+            # 根据温度值为数据点着色
+            scatter = ax.scatter(temperature_profile_celsius, distance, 
+                               c=temperature_profile_celsius, cmap='coolwarm', 
+                               s=50, alpha=0.7, edgecolors='white', linewidth=1)
+            
+            # 添加颜色条
+            cbar = fig.colorbar(scatter, ax=ax, shrink=0.8, aspect=20)
+            cbar.set_label('温度 (°C)', fontfamily=chinese_font, fontsize=12)
 
-            # Customize grid and ticks
-            ax.grid(True, which='both', linestyle='--', linewidth=0.5)
-            ax.tick_params(axis='both', which='major', labelsize=10)
+            # 设置标签和标题（使用确定的中文字体）
+            font_prop = {'family': chinese_font, 'weight': 'bold'}
+            
+            ax.set_xlabel('温度 (°C)', fontsize=14, **font_prop)
+            ax.set_ylabel('距离膜底部距离 (m)', fontsize=14, **font_prop)
+            ax.set_title('沿膜厚度方向的最终温度分布', fontsize=16, pad=20, **font_prop)
+
+            # 添加详细统计信息文本框
+            temp_range = temp_max - temp_min
+            uniformity = (1 - temp_std / max(temp_range, 1)) * 100  # 均匀性百分比
+            
+            stats_text = (f'温度统计信息:\n'
+                         f'平均值: {temp_mean:.2f}°C\n'
+                         f'标准差: {temp_std:.2f}°C\n'
+                         f'最小值: {temp_min:.2f}°C\n'
+                         f'最大值: {temp_max:.2f}°C\n'
+                         f'温度范围: {temp_range:.2f}°C\n'
+                         f'均匀性: {uniformity:.1f}%\n'
+                         f'数据点数: {len(temperature_profile_celsius)}')
+            
+            ax.text(0.02, 0.98, stats_text, transform=ax.transAxes, 
+                   fontsize=9, verticalalignment='top',
+                   bbox=dict(boxstyle='round,pad=0.5', facecolor='lightblue', alpha=0.9),
+                   fontfamily=chinese_font)
+
+            # 自定义网格和刻度
+            ax.grid(True, which='major', linestyle='-', linewidth=0.5, alpha=0.3)
+            ax.grid(True, which='minor', linestyle=':', linewidth=0.3, alpha=0.2)
+            ax.tick_params(axis='both', which='major', labelsize=11)
+            ax.tick_params(axis='both', which='minor', labelsize=9)
+
+            # 添加图例
+            legend_prop = {'family': chinese_font, 'size': 10}
+            ax.legend(loc='upper right', prop=legend_prop)
+
+            # 设置背景颜色
+            ax.set_facecolor('#f8f9fa')
+            fig.patch.set_facecolor('white')
 
             fig.tight_layout()
             canvas.draw()
             dialog.exec()
-
+            
         except Exception as e:
-            QMessageBox.critical(self.gui, "错误", f"绘制温度分布图时出错: {e}")
+            QMessageBox.critical(self.gui, "错误", f"绘制温度分布时发生错误：\n{str(e)}")
+            print(f"Temperature profile plotting error: {e}")
+            import traceback
+            traceback.print_exc()
 
     def show_realtime_temperature_gradient(self):
         """Shows a new window with the realtime temperature gradient."""

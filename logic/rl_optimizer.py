@@ -13,9 +13,11 @@ from .Models import ScriptType, RollDirection
 
 # ---------------- FilmCastingEnv (Final Version) ----------------
 class FilmCastingEnv:
-    def __init__(self, n_rolls=5, target_temp=25.0, config_path='config/config.json', action_bounds=None, use_custom_directions=False, custom_directions=None):
+    def __init__(self, n_rolls=5, target_temp=150.0, config_path='config/config.json', action_bounds=None, use_custom_directions=False, custom_directions=None):
         self.n_rolls = n_rolls
-        self.target_temp_kelvin = target_temp + 273.15
+        # 修复目标温度：target_temp应该是摄氏度，转换为开尔文
+        # 工业薄膜铸造的合理目标温度应该在100-200°C范围内
+        self.target_temp_kelvin = target_temp + 273.15  # 150°C -> 423.15K
         self.base_config = self._load_initial_config(config_path)
         self.temp_points = 20  # Sample 20 points from T1 for state representation
         self.use_custom_directions = use_custom_directions
@@ -28,10 +30,11 @@ class FilmCastingEnv:
                 f"Provided length: {len(self.custom_directions)}, Required length: {self.n_rolls - 1}"
             )
 
-        # State: [target_temp_norm, current_temp_norm, uniformity_norm, temp_diff_norm, mean_temp_norm, min_temp_norm, max_temp_norm, step_norm]
+        # 增强的State: 22维特征，包含基础、历史、空间、动作反馈和过程特征
+        # 基础特征(5) + 历史特征(8) + 空间特征(4) + 动作反馈特征(3) + 过程特征(2) = 22维
         self.action_dim = 3 if self.use_custom_directions else 4  # [temp, contact_time, cooling_time, (optional) direction]
-        self.state_dim = 1 + self.temp_points + 1 + 1 + 3 + 1 # target_norm, temp_dist, uniformity, temp_diff, mean, min, max, step_norm
-        print(f"State dimension calculated: {self.state_dim} (temp_points: {self.temp_points}, action_dim: {self.action_dim})")
+        self.state_dim = 22  # 增强的22维状态空间
+        print(f"Enhanced state dimension: {self.state_dim} (includes history, spatial, action feedback, and process features, action_dim: {self.action_dim})")
         self._setup_action_bounds(action_bounds)
     
         
@@ -72,49 +75,104 @@ class FilmCastingEnv:
         self.last_T1 = None
         self.last_cooling_T_matrix = None
         
-        # Initialize error tracking for the new reward function
+        # 增强状态空间的重置逻辑
         t0_temp = self.base_config.get('main_params', {}).get('T0', 400.0)
         self.initial_temp_kelvin = t0_temp  # Store initial temperature
-        # This now tracks the error from the step-wise target
-        self.last_step_target_error = np.abs(t0_temp - self.initial_temp_kelvin) # Initially zero
-        self.last_uniformity_error = 0.0  # Initial uniformity is perfect (zero std dev)
 
         self.current_temp_distribution = np.full(self.temp_points, t0_temp, dtype=np.float32)
         self.action_history = []
         self.last_action = np.zeros(self.action_dim, dtype=np.float32)
+        
+        # 历史记录变量用于增强状态表示
+        self.prev_temp_error = None
+        self.prev_std = None
+        
+        # 增强状态的历史记录变量
+        self.temp_history = []  # 温度统计历史
+        self.action_effect_history = []  # 动作效果历史
+        self.reward_history = []  # 奖励历史
+        self.temp_trend_history = []  # 温度趋势历史
+        
         return self._get_state()
 
     def _get_state(self):
+        """
+        构建22维增强状态表示
+        基础特征(5) + 历史特征(8) + 空间特征(4) + 动作反馈特征(3) + 过程特征(2) = 22维
+        """
         t0_temp = self.base_config.get('main_params', {}).get('T0', 400.0)
-        target_temp_norm = self.target_temp_kelvin / t0_temp
-        current_temp_norm = self.current_temp_distribution / t0_temp
         
-        # --- Add descriptive statistics of the current temperature distribution ---
+        # === 1. 基础特征 (5维) ===
+        target_temp_norm = self.target_temp_kelvin / t0_temp
         mean_current_temp = np.mean(self.current_temp_distribution)
-        min_current_temp = np.min(self.current_temp_distribution)
-        max_current_temp = np.max(self.current_temp_distribution)
         uniformity_error = np.std(self.current_temp_distribution)
         temp_diff = mean_current_temp - self.target_temp_kelvin
-
-        # --- Normalize all features ---
-        uniformity_norm = uniformity_error / 50.0  # Assuming a max std dev of 50K
+        
+        uniformity_norm = uniformity_error / 50.0
         temp_diff_norm = temp_diff / t0_temp
         mean_temp_norm = mean_current_temp / t0_temp
-        min_temp_norm = min_current_temp / t0_temp
-        max_temp_norm = max_current_temp / t0_temp
-
         step_norm = self.current_step / self.n_rolls if self.n_rolls > 0 else 0.0
-
-        state = np.concatenate([
-            [target_temp_norm],
-            current_temp_norm,
-            [uniformity_norm],
-            [temp_diff_norm],
-            [mean_temp_norm],
-            [min_temp_norm],
-            [max_temp_norm],
-            [step_norm]
+        progress_norm = self.current_step / max(1, self.n_rolls - 1)
+        
+        # === 2. 历史特征 (8维) ===
+        # 温度统计历史 (2维)
+        temp_mean_trend = np.mean([h['mean_temp'] for h in self.temp_history[-3:]]) / t0_temp if self.temp_history else mean_temp_norm
+        temp_std_trend = np.mean([h['std_temp'] for h in self.temp_history[-3:]]) / 50.0 if self.temp_history else uniformity_norm
+        
+        # 动作效果历史 (3维)
+        recent_temp_change = np.mean([h['temp_change'] for h in self.action_effect_history[-2:]]) / t0_temp if self.action_effect_history else 0.0
+        recent_std_change = np.mean([h['std_change'] for h in self.action_effect_history[-2:]]) / 50.0 if self.action_effect_history else 0.0
+        action_effectiveness = np.mean([h['effectiveness'] for h in self.action_effect_history[-3:]]) if self.action_effect_history else 0.0
+        
+        # 奖励历史 (2维)
+        recent_reward_trend = np.mean(self.reward_history[-3:]) if self.reward_history else 0.0
+        reward_improvement = (self.reward_history[-1] - self.reward_history[-2]) if len(self.reward_history) >= 2 else 0.0
+        
+        # 温度趋势历史 (1维)
+        temp_trend_slope = np.mean(self.temp_trend_history[-3:]) if self.temp_trend_history else 0.0
+        
+        # === 3. 空间特征 (4维) ===
+        temp_min_norm = np.min(self.current_temp_distribution) / t0_temp
+        temp_max_norm = np.max(self.current_temp_distribution) / t0_temp
+        temp_range_norm = (np.max(self.current_temp_distribution) - np.min(self.current_temp_distribution)) / t0_temp
+        temp_median_norm = np.median(self.current_temp_distribution) / t0_temp
+        
+        # === 4. 动作反馈特征 (3维) ===
+        # 确保动作反馈特征始终为3维，兼容3维和4维动作空间
+        if np.any(self.last_action):
+            # 归一化动作到[-1, 1]范围
+            last_action_norm = self.last_action / np.maximum(np.abs(self.last_action).max(), 1e-6)
+        else:
+            # 初始化为与action_dim相同维度的零向量
+            last_action_norm = np.zeros(self.action_dim)
+        
+        # 确保输出为3维：取前3维或补零到3维
+        if len(last_action_norm) >= 3:
+            last_action_norm = last_action_norm[:3]
+        else:
+            last_action_norm = np.pad(last_action_norm, (0, 3 - len(last_action_norm)), 'constant')
+        
+        # === 5. 过程特征 (2维) ===
+        convergence_indicator = max(0, 1 - uniformity_norm)  # 收敛指标
+        exploration_factor = max(0, 1 - progress_norm)  # 探索因子
+        
+        # === 组合22维状态 ===
+        state = np.array([
+            # 基础特征 (5维)
+            target_temp_norm, mean_temp_norm, uniformity_norm, temp_diff_norm, step_norm,
+            # 历史特征 (8维)
+            temp_mean_trend, temp_std_trend, recent_temp_change, recent_std_change, 
+            action_effectiveness, recent_reward_trend, reward_improvement, temp_trend_slope,
+            # 空间特征 (4维)
+            temp_min_norm, temp_max_norm, temp_range_norm, temp_median_norm,
+            # 动作反馈特征 (3维)
+            last_action_norm[0], last_action_norm[1], last_action_norm[2],
+            # 过程特征 (2维)
+            convergence_indicator, exploration_factor
         ]).astype(np.float32)
+        
+        # 确保状态维度正确
+        assert len(state) == 22, f"State dimension mismatch: expected 22, got {len(state)}"
         return state
 
     def step(self, action):
@@ -137,9 +195,16 @@ class FilmCastingEnv:
             # If not using custom directions, the agent's action is already the full action.
             full_action = clipped_action
 
-        # Store the full 4D action in the history for saving results.
+        # Store the full action in the history for saving results.
         self.action_history.append(full_action.copy())
-        current_params = {"temp": float(full_action[0]), "contact_time": float(full_action[1]), "cooling_time": float(full_action[2]), "direction": float(full_action[3])}
+        
+        # 安全地构建current_params，避免索引越界
+        current_params = {
+            "temp": float(full_action[0]), 
+            "contact_time": float(full_action[1]), 
+            "cooling_time": float(full_action[2]), 
+            "direction": float(full_action[3]) if len(full_action) > 3 else 1.0  # 默认方向为1.0
+        }
         try:
             # Heating
             heating_folder = "升温1" if self.current_step == 0 else ("升温3" if current_params['direction'] < 0 else "升温5")
@@ -188,6 +253,10 @@ class FilmCastingEnv:
             self.current_step += 1
             done = self.current_step >= self.n_rolls
             reward = self._calculate_reward(done)
+            
+            # 更新历史记录用于增强状态表示
+            self._update_history_records(clipped_action, reward)
+            
             new_state = self._get_state()
             
             return new_state, float(reward), bool(done), {}
@@ -198,84 +267,130 @@ class FilmCastingEnv:
             # Ensure the MATLAB workspace is cleared after each step, regardless of success or failure
             print("matlab finished")
 
+    def _update_history_records(self, action, reward):
+        """更新历史记录用于增强状态表示"""
+        t0_temp = self.base_config.get('main_params', {}).get('T0', 400.0)
+        
+        # 计算当前温度统计
+        current_mean_temp = np.mean(self.current_temp_distribution)
+        current_std_temp = np.std(self.current_temp_distribution)
+        
+        # 1. 更新温度历史 (保持最近5步)
+        temp_record = {
+            'mean_temp': current_mean_temp,
+            'std_temp': current_std_temp,
+            'step': self.current_step
+        }
+        self.temp_history.append(temp_record)
+        if len(self.temp_history) > 5:
+            self.temp_history.pop(0)
+        
+        # 2. 计算并更新动作效果历史 (保持最近5步)
+        if len(self.temp_history) >= 2:
+            prev_temp_record = self.temp_history[-2]
+            temp_change = current_mean_temp - prev_temp_record['mean_temp']
+            std_change = current_std_temp - prev_temp_record['std_temp']
+            
+            # 计算动作有效性 (温度向目标靠近且均匀性改善)
+            target_approach = -(abs(current_mean_temp - self.target_temp_kelvin) - 
+                               abs(prev_temp_record['mean_temp'] - self.target_temp_kelvin))
+            uniformity_improvement = -(current_std_temp - prev_temp_record['std_temp'])
+            effectiveness = target_approach + uniformity_improvement
+            
+            action_effect_record = {
+                'action': action.copy(),
+                'temp_change': temp_change,
+                'std_change': std_change,
+                'effectiveness': effectiveness,
+                'step': self.current_step
+            }
+            self.action_effect_history.append(action_effect_record)
+            if len(self.action_effect_history) > 5:
+                self.action_effect_history.pop(0)
+        
+        # 3. 更新奖励历史 (保持最近5步)
+        self.reward_history.append(reward)
+        if len(self.reward_history) > 5:
+            self.reward_history.pop(0)
+        
+        # 4. 更新温度趋势历史
+        if len(self.temp_history) >= 3:
+            recent_temps = [h['mean_temp'] for h in self.temp_history[-3:]]
+            temp_trend = (recent_temps[-1] - recent_temps[0]) / 2  # 简单的趋势斜率
+            self.temp_trend_history.append(temp_trend)
+            if len(self.temp_trend_history) > 5:
+                self.temp_trend_history.pop(0)
+
     def _calculate_reward(self, done):
-        if self.last_cooling_T_matrix is None or self.last_cooling_T_matrix.shape[1] < 1:
-            return -200.0
+        """简化的奖励函数 - 基于target温度和std温度的逐步加权设计"""
+        # 使用当前温度分布计算奖励
+        if self.current_temp_distribution is None or len(self.current_temp_distribution) == 0:
+            return -1.0  # 归一化后的最低奖励
 
-        current_temp_distribution = self.last_cooling_T_matrix[:, -1]
-        mean_current_temp = float(np.mean(current_temp_distribution))
-        std_current = float(np.std(current_temp_distribution))
+        mean_current_temp = float(np.mean(self.current_temp_distribution))
+        std_current = float(np.std(self.current_temp_distribution))
 
-        # --- 1. Define Normalization and Reward Parameters ---
-        max_mean_err = 50.0  # Max expected error in Kelvin for normalization
-        max_std = 5.0      # Max expected std dev in Kelvin for normalization
-
-        # --- 2. Calculate Dynamic Step-wise Target and Progressive Reward ---
-        step_progress = self.current_step / self.n_rolls
+        # 计算与目标温度的距离差异
+        target_diff = abs(mean_current_temp - self.target_temp_kelvin)
         
-        # Use a logarithmic curve for the target temperature progression.
-        # This ensures the target moves quickly at the start and slows down as it approaches the final target.
-        # np.log1p(1) is log(2), so this scales the progress from 0 to 1 logarithmically.
-        eased_progress = np.log1p(step_progress) / np.log1p(1)
-        current_step_target_temp = self.initial_temp_kelvin + (self.target_temp_kelvin - self.initial_temp_kelvin) * eased_progress
+        # 步骤权重：随步骤递增，强调后期精度
+        step_weight = (self.current_step + 1) / self.n_rolls if self.n_rolls > 0 else 1.0
         
-        # Calculate error based on the DYNAMIC target for this step
-        mean_err = float(abs(mean_current_temp - current_step_target_temp))
-
-        # The penalty for errors becomes harsher as we approach the final step.
-        k_mean = 1.0 + step_progress * 4.0  # Sharpness for mean error penalty (1 -> 5)
-        k_std = 1.0 + step_progress * 4.0   # Sharpness for std error penalty (1 -> 5)
-
-        # Normalize errors to [0, 1]
-        mean_err_norm = np.clip(mean_err / max_mean_err, 0.0, 1.0)
-        std_norm = np.clip(std_current / max_std, 0.0, 1.0)
-
-        # Calculate exponential scores for mean and std, each contributing up to 0.5
-        score_mean = 0.5 * np.exp(-k_mean * mean_err_norm)
-        score_std = 0.5 * np.exp(-k_std * std_norm)
+        # 1. Target温度奖励：使用更敏感的奖励函数
+        # 使用分段函数：小差异时给予更高奖励梯度
+        if target_diff <= 5.0:  # 5K以内给予高奖励
+            target_reward = 1.0 - (target_diff / 5.0) * 0.3  # 0.7-1.0范围
+        elif target_diff <= 20.0:  # 5-20K中等奖励
+            target_reward = 0.7 - ((target_diff - 5.0) / 15.0) * 0.5  # 0.2-0.7范围
+        else:  # 20K以上低奖励
+            target_reward = max(0.0, 0.2 - (target_diff - 20.0) / 50.0)  # 0-0.2范围
         
-        base_reward = score_mean + score_std  # Max base reward is 1.0
-
-        # --- 3. Calculate Improvement-based Reward ---
-        # Reward the agent for reducing the error compared to the previous step's dynamic target.
-        mean_err_improvement = self.last_step_target_error - mean_err
-        std_improvement = self.last_uniformity_error - std_current
+        # 2. Std温度奖励：标准差越小越好（均匀性）
+        if std_current <= 2.0:  # 2K以内给予高奖励
+            std_reward = 1.0 - (std_current / 2.0) * 0.3  # 0.7-1.0范围
+        elif std_current <= 10.0:  # 2-10K中等奖励
+            std_reward = 0.7 - ((std_current - 2.0) / 8.0) * 0.5  # 0.2-0.7范围
+        else:  # 10K以上低奖励
+            std_reward = max(0.0, 0.2 - (std_current - 10.0) / 20.0)  # 0-0.2范围
         
-        # Scale the improvement to a small bonus/penalty
-        #如果不是第一部
-        if self.current_step > 0:
-            # Only calculate improvement reward if not the first step
-            improvement_reward = (mean_err_improvement / max_mean_err) * 0.7 + \
-                                 (std_improvement / max_std) * 0.7
-        else:
-            # For the first step, no improvement reward
-            improvement_reward = 0.0
+        # 3. 改进奖励：与上一步比较
+        improvement_reward = 0.0
+        if hasattr(self, 'prev_temp_error') and self.prev_temp_error is not None:
+            temp_improvement = self.prev_temp_error - target_diff
+            std_improvement = (self.prev_std - std_current) if hasattr(self, 'prev_std') and self.prev_std is not None else 0.0
+            improvement_reward = (temp_improvement + std_improvement) / 10.0  # 归一化改进奖励
+            improvement_reward = np.clip(improvement_reward, -0.5, 0.5)
         
-        # --- 4. Calculate Final Step Bonus ---
-        final_bonus = 0.0
-        if done:
-            # For the final bonus, calculate error against the TRUE final target
-            final_mean_err = float(abs(mean_current_temp - self.target_temp_kelvin))
-            # final_bonus只有在误差极小时才高，否则迅速衰减
-            if final_mean_err < 2.0 and std_current < 0.3:
-                final_bonus = 2.0 * np.exp(-0.5 * final_mean_err) * np.exp(-1.0 * std_current)
-                final_bonus += 0.5
-            elif final_mean_err < 5.0 and std_current < 0.5:
-                final_bonus = 1.0 * np.exp(-0.2 * final_mean_err) * np.exp(-0.5 * std_current)
-            else:
-                final_bonus = -1.0 * (final_mean_err / 10.0 + std_current)  # 误差大时直接给负分
-
-        # --- 5. Combine all reward components ---
-        total_reward = base_reward + improvement_reward + final_bonus
+        # 更新历史记录
+        self.prev_temp_error = target_diff
+        self.prev_std = std_current
         
-        # --- 6. Update last errors for the next step's calculation ---
-        self.last_step_target_error = mean_err
-        self.last_uniformity_error = std_current
+        # 4. 逐步加权：权重随步骤增加
+        target_weight = 0.5 + 0.3 * step_weight  # 0.5 -> 0.8
+        std_weight = 0.3 + 0.2 * step_weight     # 0.3 -> 0.5
+        improvement_weight = 0.2  # 固定改进权重
+        
+        # 5. 组合奖励
+        total_reward = (target_weight * target_reward + 
+                       std_weight * std_reward + 
+                       improvement_weight * improvement_reward)
+        
+        # 6. 归一化到[-1, 1]范围
+        # 理论最大值约为 0.8 * 1.0 + 0.5 * 1.0 + 0.2 * 0.5 = 1.4
+        # 理论最小值约为 0.5 * 0.0 + 0.3 * 0.0 + 0.2 * (-0.5) = -0.1
+        normalized_reward = (total_reward - 0.65) / 0.75  # 将[-0.1, 1.4]映射到[-1, 1]
+        normalized_reward = np.clip(normalized_reward, -1.0, 1.0)
+        
+        # 调试日志
+        print(f"Step {self.current_step}/{self.n_rolls} (Weight: {step_weight:.2f}) - "
+              f"Temp: {mean_current_temp:.2f}K (Target: {self.target_temp_kelvin:.2f}K) | "
+              f"Target_diff: {target_diff:.2f}K, Std: {std_current:.2f}K | "
+              f"Rewards: Target={target_reward:.3f} (w={target_weight:.2f}), "
+              f"Std={std_reward:.3f} (w={std_weight:.2f}), "
+              f"Improvement={improvement_reward:.3f} (w={improvement_weight:.2f}) | "
+              f"Total: {total_reward:.3f} -> Normalized: {normalized_reward:.3f}")
 
-        # Log for debugging
-        print(f"Step {self.current_step}/{self.n_rolls} - Target: {current_step_target_temp:.2f}K | Reward: {total_reward:.4f} (Base: {base_reward:.2f}, Improv: {improvement_reward:.2f}, Bonus: {final_bonus:.2f}) | Mean Err: {mean_err:.2f}K, Std: {std_current:.2f}K")
-
-        return float(np.clip(total_reward, -1.0, 2.0)) # Clip to a reasonable range
+        return float(normalized_reward)
 
 # ---------------- SumTree for Prioritized Replay Buffer ----------------
 class SumTree:
@@ -383,30 +498,66 @@ class PrioritizedReplayBuffer:
 class Actor(nn.Module):
     def __init__(self, state_dim, action_dim):
         super(Actor, self).__init__()
+        # 两层隐藏层结构 + BatchNorm1d
         self.layer1 = nn.Linear(state_dim, 256)
-        self.layer2 = nn.Linear(256, 64)
-        self.layer3 = nn.Linear(64, action_dim)
+        self.bn1 = nn.BatchNorm1d(256)
+        self.layer2 = nn.Linear(256, 128)
+        self.bn2 = nn.BatchNorm1d(128)
+        self.output_layer = nn.Linear(128, action_dim)
+        
+        # Dropout层用于正则化
+        self.dropout = nn.Dropout(0.1)
 
     def forward(self, x):
-        x = torch.relu(self.layer1(x))
-        x = torch.relu(self.layer2(x))
-        return torch.tanh(self.layer3(x))
+        # 第一层
+        x = self.layer1(x)
+        x = self.bn1(x)
+        x = torch.relu(x)
+        x = self.dropout(x)
+        
+        # 第二层
+        x = self.layer2(x)
+        x = self.bn2(x)
+        x = torch.relu(x)
+        x = self.dropout(x)
+        
+        # 输出层
+        return torch.tanh(self.output_layer(x))
 
 class Critic(nn.Module):
     def __init__(self, state_dim, action_dim):
         super(Critic, self).__init__()
-        self.layer1 = nn.Linear(state_dim + action_dim, 256)
-        self.layer2 = nn.Linear(256, 64)
-        self.layer3 = nn.Linear(64, 1)
+        # 两层隐藏层结构 + BatchNorm1d
+        input_dim = state_dim + action_dim
+        self.layer1 = nn.Linear(input_dim, 256)
+        self.bn1 = nn.BatchNorm1d(256)
+        self.layer2 = nn.Linear(256, 128)
+        self.bn2 = nn.BatchNorm1d(128)
+        self.output_layer = nn.Linear(128, 1)
+        
+        # Dropout层用于正则化
+        self.dropout = nn.Dropout(0.1)
 
     def forward(self, x, u):
         xu = torch.cat([x, u], 1)
-        x = torch.relu(self.layer1(xu))
-        x = torch.relu(self.layer2(x))
-        return self.layer3(x)
+        
+        # 第一层
+        x = self.layer1(xu)
+        x = self.bn1(x)
+        x = torch.relu(x)
+        x = self.dropout(x)
+        
+        # 第二层
+        x = self.layer2(x)
+        x = self.bn2(x)
+        x = torch.relu(x)
+        x = self.dropout(x)
+        
+        # 输出层
+        return self.output_layer(x)
 
 class TD3:
-    def __init__(self, state_dim, action_dim, action_low, action_high, device, log_updated=None, replay_buffer_size=1000000, batch_size=64):
+    def __init__(self, state_dim, action_dim, action_low, action_high, device, log_updated=None, replay_buffer_size=1000000, batch_size=128):
         self.device = device
         self.log_updated = log_updated
         self.state_dim = state_dim
@@ -420,7 +571,8 @@ class TD3:
         self.actor = Actor(state_dim, action_dim).to(device)
         self.actor_target = Actor(state_dim, action_dim).to(device)
         self.actor_target.load_state_dict(self.actor.state_dict())
-        self.actor_optimizer = optim.Adam(self.actor.parameters(), lr=3e-3)
+        # 优化学习率：适中的学习率平衡学习速度和稳定性
+        self.actor_optimizer = optim.Adam(self.actor.parameters(), lr=5e-4, weight_decay=1e-5)
 
         # --- Critic Networks (Twin) ---
         self.critic1 = Critic(state_dim, action_dim).to(device)
@@ -430,12 +582,13 @@ class TD3:
         print(self.critic1)
         self.critic1_target = Critic(state_dim, action_dim).to(device)
         self.critic1_target.load_state_dict(self.critic1.state_dict())
-        self.critic1_optimizer = optim.Adam(self.critic1.parameters(), lr=3e-3)
+        # Critic学习率稍高于Actor，加快价值函数学习
+        self.critic1_optimizer = optim.Adam(self.critic1.parameters(), lr=8e-4, weight_decay=1e-5) 
 
         self.critic2 = Critic(state_dim, action_dim).to(device)
         self.critic2_target = Critic(state_dim, action_dim).to(device)
         self.critic2_target.load_state_dict(self.critic2.state_dict())
-        self.critic2_optimizer = optim.Adam(self.critic2.parameters(), lr=3e-3)
+        self.critic2_optimizer = optim.Adam(self.critic2.parameters(), lr=8e-4, weight_decay=1e-5)
 
         # --- Prioritized Experience Replay ---
         self.replay_buffer = PrioritizedReplayBuffer(capacity=replay_buffer_size)
@@ -447,23 +600,77 @@ class TD3:
         self.discount = 0.99
         self.tau = 0.005
         
-        # --- Exploration Noise Decay ---
-        self.initial_exploration_noise_std = 0.1
-        self.final_exploration_noise_std = 0.1
-        self.exploration_decay_steps = 500000
+        # --- 改进的探索策略 ---
+        # 更慢的噪声衰减，给模型更多时间探索
+        self.initial_exploration_noise_std = 0.15  # 适度增加初始噪声，确保充分探索
+        self.final_exploration_noise_std = 0.01   # 提高最终噪声，保持持续探索
+        self.exploration_decay_steps = 1000000    # 延长衰减步数，避免过早收敛
         self.exploration_noise_std = self.initial_exploration_noise_std
         
         # TD3 specific parameters
-        self.policy_noise = 0.2
-        self.noise_clip = 0.5
-        self.policy_freq = 1  # 增加训练频率，每次都更新actor
+        # 调整policy_noise以适应归一化的action空间[-1,1]
+        self.policy_noise = 0.1  # 保持适中的policy noise
+        self.noise_clip = 0.05   # 保持合理的噪声范围
+        self.policy_freq = 2     # 保持延迟更新频率
         self.total_it = 0
+        
+        # 打印维度范围信息，验证相对变换效果
+        action_ranges = self.action_high_np - self.action_low_np
+        action_centers = (self.action_high_np + self.action_low_np) * 0.5
+        print(f"Action dimensions optimization:")
+        print(f"  Original ranges: {action_ranges}")
+        print(f"  Action centers: {action_centers}")
+        print(f"  Relative transform: All dimensions normalized to [-1, 1] for equal training magnitude")
+        print(f"  This ensures balanced gradient updates across all action dimensions")
 
     def _scale_action_torch(self, action_norm_t):
-        return self.action_low_t + (action_norm_t + 1.0) * 0.5 * (self.action_high_t - self.action_low_t)
+        """
+        将归一化的action [-1, 1] 转换为实际的action值
+        使用相对变换，确保各维度处于相同量级的训练空间
+        """
+        # 计算各维度的范围
+        action_ranges = self.action_high_t - self.action_low_t
+        
+        # 使用相对变换：action_norm_t 在 [-1, 1] 范围内代表相对于中心点的偏移比例
+        action_centers = (self.action_high_t + self.action_low_t) * 0.5
+        
+        # 将归一化的动作转换为实际动作
+        # action_norm_t = 0 对应中心值，±1 对应边界值
+        scaled_action = action_centers + action_norm_t * action_ranges * 0.5
+        
+        return scaled_action
 
     def _scale_action_numpy(self, action_norm_np):
-        return self.action_low_np + (action_norm_np + 1.0) * 0.5 * (self.action_high_np - self.action_low_np)
+        """
+        将归一化的action [-1, 1] 转换为实际的action值 (numpy版本)
+        使用相对变换，确保各维度处于相同量级的训练空间
+        """
+        # 计算各维度的范围
+        action_ranges = self.action_high_np - self.action_low_np
+        
+        # 使用相对变换：action_norm_np 在 [-1, 1] 范围内代表相对于中心点的偏移比例
+        action_centers = (self.action_high_np + self.action_low_np) * 0.5
+        
+        # 将归一化的动作转换为实际动作
+        # action_norm_np = 0 对应中心值，±1 对应边界值
+        scaled_action = action_centers + action_norm_np * action_ranges * 0.5
+        
+        return scaled_action
+    
+    def _normalize_action_torch(self, action_t):
+        """
+        将实际动作值反向归一化到[-1, 1]范围
+        使用相对变换，确保各维度处于相同量级的训练空间
+        """
+        # 计算各维度的范围和中心点
+        action_ranges = self.action_high_t - self.action_low_t
+        action_centers = (self.action_high_t + self.action_low_t) * 0.5
+        
+        # 将实际动作转换为归一化动作
+        # 相对于中心点的偏移，除以半范围，得到 [-1, 1] 的归一化值
+        normalized_action = (action_t - action_centers) / (action_ranges * 0.5)
+        
+        return torch.clamp(normalized_action, -1.0, 1.0)
 
     def select_action(self, state, noise=True):
         self.actor.eval()
@@ -472,7 +679,9 @@ class TD3:
             action_norm = self.actor(state_t).cpu().data.numpy().flatten()
         self.actor.train()
         if noise:
-            # Apply decayed exploration noise
+            # 维度自适应的探索噪声
+            # 由于使用了相对变换，所有维度在[-1,1]范围内具有相同的量级
+            # 可以使用统一的噪声标准差，确保各维度的探索强度一致
             noise_val = np.random.normal(0, self.exploration_noise_std, size=self.action_dim)
             action_norm = np.clip(action_norm + noise_val, -1.0, 1.0)
         action = self._scale_action_numpy(action_norm)
@@ -504,7 +713,9 @@ class TD3:
         
         state, action, reward, next_state, done = zip(*batch)
         state = torch.FloatTensor(np.array(state)).to(self.device)
-        action = torch.FloatTensor(np.array(action)).to(self.device)
+        action_raw = torch.FloatTensor(np.array(action)).to(self.device)
+        # 将实际动作值归一化到[-1, 1]范围用于训练
+        action = self._normalize_action_torch(action_raw)
         reward = torch.FloatTensor(np.array(reward)).view(-1, 1).to(self.device)
         next_state = torch.FloatTensor(np.array(next_state)).to(self.device)
         done = torch.FloatTensor(np.array(done)).view(-1, 1).to(self.device)
@@ -515,7 +726,8 @@ class TD3:
             noise = (torch.randn_like(action) * self.policy_noise).clamp(-self.noise_clip, self.noise_clip)
             next_action_norm = self.actor_target(next_state)
             next_action_norm_clipped = (next_action_norm + noise).clamp(-1.0, 1.0)
-            next_action = self._scale_action_torch(next_action_norm_clipped)
+            # 使用归一化的next_action与Critic网络保持一致
+            next_action = next_action_norm_clipped
 
             # --- Clipped Double-Q Learning: Compute the target Q value ---
             target_Q1 = self.critic1_target(next_state, next_action)
@@ -550,13 +762,12 @@ class TD3:
         if self.total_it % self.policy_freq == 0:
             # --- Actor Update ---
             action_norm_pred = self.actor(state)
-            action_pred = self._scale_action_torch(action_norm_pred)
-            q_value_pred = self.critic1(state, action_pred)
+            # 使用归一化的action与Critic网络保持一致
+            q_value_pred = self.critic1(state, action_norm_pred)
             actor_loss = -q_value_pred.mean()
 
             self.actor_optimizer.zero_grad()
             actor_loss.backward()
-            torch.nn.utils.clip_grad_norm_(self.actor.parameters(), max_norm=1.0)
             self.actor_optimizer.step()
 
             # Log losses
@@ -817,14 +1028,42 @@ def save_best_params_as_json(action_history, file_path):
         print(f"Error saving JSON file: {e}")
         return None
 
-def save_reward_plot(rewards, plot_path='rl_reward_curve.png'):
-    plt.figure(figsize=(10, 5))
-    plt.plot(rewards)
-    plt.xlabel('Episode')
-    plt.ylabel('Reward')
-    plt.title('Reinforcement Learning Reward Curve')
-    plt.grid(True)
-    plt.savefig(plot_path)
+def save_exploration_reward_plot(exploration_rewards, plot_path='exploration_reward_curve.png', title='Exploration Reward Curve'):
+    """
+    保存探索得分图表
+    
+    Args:
+        exploration_rewards: 探索得分列表，每个元素代表一轮的得分
+        plot_path: 图表保存路径
+        title: 图表标题
+    """
+    if not exploration_rewards:
+        print("No exploration rewards to plot")
+        return None
+        
+    plt.figure(figsize=(12, 6))
+    rounds = list(range(1, len(exploration_rewards) + 1))
+    plt.plot(rounds, exploration_rewards, 'b-o', linewidth=2, markersize=4)
+    plt.xlabel('轮数 (Round)')
+    plt.ylabel('探索得分 (Exploration Reward)')
+    plt.title(title)
+    plt.grid(True, alpha=0.3)
+    
+    # 添加统计信息
+    if exploration_rewards:
+        avg_reward = sum(exploration_rewards) / len(exploration_rewards)
+        max_reward = max(exploration_rewards)
+        min_reward = min(exploration_rewards)
+        plt.axhline(y=avg_reward, color='r', linestyle='--', alpha=0.7, label=f'平均值: {avg_reward:.4f}')
+        plt.legend()
+        
+        # 添加文本注释
+        plt.text(0.02, 0.98, f'最大值: {max_reward:.4f}\n最小值: {min_reward:.4f}\n平均值: {avg_reward:.4f}', 
+                transform=plt.gca().transAxes, verticalalignment='top',
+                bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.8))
+    
+    plt.tight_layout()
+    plt.savefig(plot_path, dpi=150, bbox_inches='tight')
     plt.close()
-    print(f"Reward curve saved to {plot_path}")
+    print(f"Exploration reward curve saved to {plot_path}")
     return plot_path

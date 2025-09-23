@@ -6,7 +6,7 @@ from PyQt6.QtCore import QThread, pyqtSignal
 
 from logic.rl_optimizer import (
     FilmCastingEnv, TD3,
-    save_best_params_as_json, save_reward_plot,
+    save_best_params_as_json, save_exploration_reward_plot,
     save_training_state, load_training_state
 )
 from logic.run_matlab_simulation import start_shared_engine, stop_shared_engine, restart_shared_engine
@@ -37,6 +37,11 @@ class RlOptimizationThread(QThread):
         self.result_dir = "RLresult"
         self.output_path = os.path.join(self.result_dir, f"best_params_{n_rolls}rolls_{num_episodes}eps.json")
         self._is_running = True
+        
+        # 探索得分记录相关变量
+        self.pre_collect_exploration_rewards = []  # 经验池预采集阶段的探索得分
+        self.random_exploration_rewards = []       # 随机探索阶段的探索得分
+        self.exploration_round_counter = 0         # 探索轮数计数器
 
     def stop(self):
         """请求停止线程"""
@@ -112,6 +117,8 @@ class RlOptimizationThread(QThread):
             while len(agent.replay_buffer) < pre_collect_size:
                 if not self._is_running: break
                 state = env.reset()
+                episode_exploration_reward = 0.0  # 记录当前轮次的总探索得分
+                
                 for step in range(self.n_rolls):
                     if not self._is_running: break
                     action = np.random.uniform(low=env.action_low, high=env.action_high, size=env.action_dim).astype(np.float32)
@@ -130,10 +137,26 @@ class RlOptimizationThread(QThread):
                         push_reward = _['norm_reward']
                     agent.push(state, action, push_reward, next_state, done)
                     state = next_state
+                    episode_exploration_reward += push_reward  # 累积探索得分
                     if done: break
                 
                 if 'reward' in locals() and reward < -999:
                     continue
+                    
+                # 记录本轮探索得分
+                self.exploration_round_counter += 1
+                self.pre_collect_exploration_rewards.append(episode_exploration_reward)
+                
+                # 每五轮保存一次探索得分图表
+                if self.exploration_round_counter % 5 == 0:
+                    exploration_plot_path = os.path.join(self.result_dir, f"pre_collect_exploration_rewards_round_{self.exploration_round_counter}.png")
+                    save_exploration_reward_plot(
+                        self.pre_collect_exploration_rewards, 
+                        exploration_plot_path, 
+                        f'经验池预采集探索得分 (轮数: {self.exploration_round_counter})'
+                    )
+                    self.log_updated.emit(f"已保存经验池预采集探索得分图表 (轮数: {self.exploration_round_counter})", "info")
+                
                 matlab_step_counter += 1
                 
                 progress_msg = f"数据预采集中... ({len(agent.replay_buffer)}/{pre_collect_size})"
@@ -224,7 +247,7 @@ class RlOptimizationThread(QThread):
                     agent.save_best_model(model_path)
 
                     plot_path = os.path.join(self.result_dir, f"rl_reward_curve_{self.n_rolls}rolls_{self.num_episodes}eps.png")
-                    save_reward_plot(rewards, plot_path)
+                    save_exploration_reward_plot(rewards, plot_path, title=f"Best Reward: {best_reward:.4f}")
                     # reset no-improve counter on improvement
                     no_improve_counter = 0
                 else:
@@ -267,7 +290,19 @@ class RlOptimizationThread(QThread):
                     for i in range(total_explorations):
                         if not self._is_running: break
                         rr = run_exploration_episode()
-                        self.log_updated.emit(f"额外随机探索 {i+1}/{total_explorations} 完成，reward={rr}", "info")
+                        if rr is not None:  # 只有成功的探索才记录
+                            self.random_exploration_rewards.append(rr)
+                            self.log_updated.emit(f"额外随机探索 {i+1}/{total_explorations} 完成，reward={rr}", "info")
+                            
+                            # 每五次随机探索保存一次图表
+                            if len(self.random_exploration_rewards) % 5 == 0:
+                                random_exploration_plot_path = os.path.join(self.result_dir, f"random_exploration_rewards_count_{len(self.random_exploration_rewards)}.png")
+                                save_exploration_reward_plot(
+                                    self.random_exploration_rewards, 
+                                    random_exploration_plot_path, 
+                                    f'随机探索得分 (探索次数: {len(self.random_exploration_rewards)})'
+                                )
+                                self.log_updated.emit(f"已保存随机探索得分图表 (探索次数: {len(self.random_exploration_rewards)})", "info")
 
                     # 重置计数器并继续训练
                     no_improve_counter = 0
@@ -299,7 +334,7 @@ class RlOptimizationThread(QThread):
                     save_training_state(agent, training_params, rewards, episode + 1, checkpoint_save_path)
                     self.log_updated.emit(f"训练状态已保存至 {checkpoint_save_path}", "success")
                     plot_path = os.path.join(self.result_dir, f"rl_reward_curve_{self.n_rolls}rolls_{self.num_episodes}eps.png")
-                    save_reward_plot(rewards, plot_path)
+                    save_exploration_reward_plot(rewards, plot_path, title=f"Best Reward: {best_reward:.4f}")
 
                 # --- 周期性重启MATLAB引擎 ---
                 if matlab_step_counter >= MATLAB_RESTART_INTERVAL:
@@ -310,6 +345,26 @@ class RlOptimizationThread(QThread):
 
             if best_params is not None and self._is_running:
                 self.log_updated.emit("\n全部优化流程完成。", "success")
+                
+                # 保存最终的探索得分图表
+                if self.pre_collect_exploration_rewards:
+                    final_pre_collect_plot_path = os.path.join(self.result_dir, "final_pre_collect_exploration_rewards.png")
+                    save_exploration_reward_plot(
+                        self.pre_collect_exploration_rewards, 
+                        final_pre_collect_plot_path, 
+                        f'经验池预采集最终探索得分 (总轮数: {len(self.pre_collect_exploration_rewards)})'
+                    )
+                    self.log_updated.emit("已保存经验池预采集最终探索得分图表", "info")
+                
+                if self.random_exploration_rewards:
+                    final_random_exploration_plot_path = os.path.join(self.result_dir, "final_random_exploration_rewards.png")
+                    save_exploration_reward_plot(
+                        self.random_exploration_rewards, 
+                        final_random_exploration_plot_path, 
+                        f'随机探索最终得分 (总探索次数: {len(self.random_exploration_rewards)})'
+                    )
+                    self.log_updated.emit("已保存随机探索最终得分图表", "info")
+                
                 # Final save is already done in real-time, just emit the signal with the final paths
                 json_path = self.output_path
                 plot_path = os.path.join(self.result_dir, f"rl_reward_curve_{self.n_rolls}rolls_{self.num_episodes}eps.png")
