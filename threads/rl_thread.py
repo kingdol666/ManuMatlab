@@ -52,6 +52,7 @@ class RlOptimizationThread(QThread):
         """执行优化任务，并在每个 episode 后发射信号"""
         os.makedirs(self.result_dir, exist_ok=True)
         matlab_step_counter = 0  # 初始化MATLAB调用计数器
+        exploration_batch_rewards = [] # 用于记录每个探索批次的总奖励
         
         agent = None
         rewards = []
@@ -114,11 +115,18 @@ class RlOptimizationThread(QThread):
             pre_collect_size = self.replay_buffer_size   # 增加预采集数据量
             if not self.checkpoint_path or len(agent.replay_buffer) < pre_collect_size:
                 self.log_updated.emit(f"经验池大小不足 {pre_collect_size}，正在进行数据预采集...", "info")
+            
+            pre_collect_rewards = []
+            pre_collect_episodes = 0
             while len(agent.replay_buffer) < pre_collect_size:
                 if not self._is_running: break
                 state = env.reset()
+<<<<<<< HEAD
                 episode_exploration_reward = 0.0  # 记录当前轮次的总探索得分
                 
+=======
+                episode_reward = 0
+>>>>>>> 165ca06b947fbab6dabdfc4ebc346bfb6f1a194f
                 for step in range(self.n_rolls):
                     if not self._is_running: break
                     action = np.random.uniform(low=env.action_low, high=env.action_high, size=env.action_dim).astype(np.float32)
@@ -135,6 +143,7 @@ class RlOptimizationThread(QThread):
                     push_reward = reward
                     if isinstance(_, dict) and 'norm_reward' in _:
                         push_reward = _['norm_reward']
+                    episode_reward += push_reward
                     agent.push(state, action, push_reward, next_state, done)
                     state = next_state
                     episode_exploration_reward += push_reward  # 累积探索得分
@@ -142,6 +151,7 @@ class RlOptimizationThread(QThread):
                 
                 if 'reward' in locals() and reward < -999:
                     continue
+<<<<<<< HEAD
                     
                 # 记录本轮探索得分
                 self.exploration_round_counter += 1
@@ -157,6 +167,16 @@ class RlOptimizationThread(QThread):
                     )
                     self.log_updated.emit(f"已保存经验池预采集探索得分图表 (轮数: {self.exploration_round_counter})", "info")
                 
+=======
+
+                pre_collect_rewards.append(episode_reward)
+                pre_collect_episodes += 1
+                if pre_collect_episodes > 0 and pre_collect_episodes % 5 == 0:
+                    plot_path = os.path.join(self.result_dir, f"rl_pre_collection_reward_curve.png")
+                    save_reward_plot(pre_collect_rewards, plot_path)
+                    self.log_updated.emit(f"预采集奖励曲线图已保存至 {plot_path}", "success")
+
+>>>>>>> 165ca06b947fbab6dabdfc4ebc346bfb6f1a194f
                 matlab_step_counter += 1
                 
                 progress_msg = f"数据预采集中... ({len(agent.replay_buffer)}/{pre_collect_size})"
@@ -287,9 +307,11 @@ class RlOptimizationThread(QThread):
 
                     # 进行N次完全随机探索
                     total_explorations = EXTRA_RANDOM_EXPLORATIONS + EXTRA_GUIDED_EXPLORATIONS
+                    current_batch_rewards = []
                     for i in range(total_explorations):
                         if not self._is_running: break
                         rr = run_exploration_episode()
+<<<<<<< HEAD
                         if rr is not None:  # 只有成功的探索才记录
                             self.random_exploration_rewards.append(rr)
                             self.log_updated.emit(f"额外随机探索 {i+1}/{total_explorations} 完成，reward={rr}", "info")
@@ -303,7 +325,24 @@ class RlOptimizationThread(QThread):
                                     f'随机探索得分 (探索次数: {len(self.random_exploration_rewards)})'
                                 )
                                 self.log_updated.emit(f"已保存随机探索得分图表 (探索次数: {len(self.random_exploration_rewards)})", "info")
+=======
+                        if rr is not None:
+                            current_batch_rewards.append(rr)
+                        self.log_updated.emit(f"额外随机探索 {i+1}/{total_explorations} 完成，reward={rr}", "info")
+>>>>>>> 165ca06b947fbab6dabdfc4ebc346bfb6f1a194f
 
+                    # --- 记录并绘制探索奖励 ---
+                    if current_batch_rewards:
+                        total_batch_reward = sum(current_batch_rewards)
+                        exploration_batch_rewards.append(total_batch_reward)
+                        self.log_updated.emit(f"探索批次完成，总奖励: {total_batch_reward:.4f}", "success")
+
+                        # 每五次探索批次绘制一次plot
+                        if len(exploration_batch_rewards) % 5 == 0:
+                            plot_path = os.path.join(self.result_dir, f"rl_exploration_reward_curve.png")
+                            save_reward_plot(exploration_batch_rewards, plot_path)
+                            self.log_updated.emit(f"探索奖励曲线图已保存至 {plot_path}", "success")
+                    
                     # 重置计数器并继续训练
                     no_improve_counter = 0
 
