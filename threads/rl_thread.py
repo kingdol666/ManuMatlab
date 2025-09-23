@@ -333,7 +333,7 @@ class RlOptimizationThread(QThread):
                     checkpoint_save_path = os.path.join(save_dir, f"training_state_{self.n_rolls}rolls_{self.num_episodes}eps.json")
                     save_training_state(agent, training_params, rewards, episode + 1, checkpoint_save_path)
                     self.log_updated.emit(f"训练状态已保存至 {checkpoint_save_path}", "success")
-                    check_plot_path = os.path.join(self.result_dir, "check_exploration_rewards.png")
+                    check_plot_path = os.path.join(self.result_dir, "check_rewards.png")
                     save_exploration_reward_plot(rewards, check_plot_path)
                     self.log_updated.emit(f"检查探索奖励曲线图已保存至 {check_plot_path}", "success")   
 
