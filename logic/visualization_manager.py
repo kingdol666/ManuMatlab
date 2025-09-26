@@ -12,6 +12,7 @@ from matplotlib.figure import Figure
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.patches import Rectangle
 from PyQt6.QtCore import Qt, QThread, QMetaObject, QTimer, Q_ARG
+import mplcursors
 from PyQt6.QtWidgets import (
     QDialog, QFileDialog, QMessageBox, QVBoxLayout, QScrollArea, QWidget,
     QComboBox, QLabel, QTabWidget, QTextEdit, QTableWidget, QTableWidgetItem,
@@ -1184,40 +1185,15 @@ class VisualizationManager:
                         'color': colors[color_idx],
                         'line': line
                     })
-                    
-                    # 简化标注：只在关键位置添加必要信息
-                    # 起始点标注
-                    initial_temp = temp_celsius[0]
-                    ax1.annotate(f'{initial_temp:.1f}°C', 
-                               xy=(time_steps[0], initial_temp),
-                               xytext=(15, 15), textcoords='offset points',  # 增大偏移距离
-                               bbox=dict(boxstyle='round,pad=0.4', fc='white', alpha=0.8, 
-                                        edgecolor=colors[color_idx], linewidth=0.8),
-                               arrowprops=dict(arrowstyle='->', color=colors[color_idx], lw=0.8),
-                               fontsize=11, ha='left')  # 增大字体
-                    
-                    # 结束点标注
-                    final_temp = temp_celsius[-1]
-                    ax1.annotate(f'{final_temp:.1f}°C', 
-                               xy=(time_steps[-1], final_temp),
-                               xytext=(-15, 15), textcoords='offset points',  # 增大偏移距离
-                               bbox=dict(boxstyle='round,pad=0.4', fc='white', alpha=0.8, 
-                                        edgecolor=colors[color_idx], linewidth=0.8),
-                               arrowprops=dict(arrowstyle='->', color=colors[color_idx], lw=0.8),
-                               fontsize=11, ha='right')  # 增大字体
-                    
-                    # 极值点标注（只标注最高温度）
-                    max_temp_idx = np.argmax(temp_celsius)
-                    max_temp = temp_celsius[max_temp_idx]
-                    if max_temp > y_max - y_range * 0.3:  # 只在显著位置标注
-                        ax1.annotate(f'{max_temp:.1f}°C', 
-                                   xy=(time_steps[max_temp_idx], max_temp),
-                                   xytext=(0, 20), textcoords='offset points',  # 增大偏移距离
-                                   ha='center',
-                                   bbox=dict(boxstyle='round,pad=0.4', fc='white', alpha=0.8, 
-                                            edgecolor='red', linewidth=0.8),
-                                   arrowprops=dict(arrowstyle='->', color='red', lw=0.8),
-                                   fontsize=11)  # 增大字体
+            
+            # 使用 mplcursors 实现悬停显示
+            cursor = mplcursors.cursor(ax1, hover=True)
+            @cursor.connect("add")
+            def on_add(sel):
+                sel.annotation.set_text(f'{sel.artist.get_label()}\nTime: {sel.target[0]:.2f}s\nTemp: {sel.target[1]:.2f}°C')
+                sel.annotation.set(fontproperties='SimHei')
+                sel.annotation.get_bbox_patch().set(facecolor=sel.artist.get_color(), alpha=0.7)
+                sel.annotation.arrow_patch.set(arrowstyle="->", facecolor="black", alpha=0.5)
             
             # 设置主图标题和标签
             ax1.set_xlabel('时间 (s)', fontsize=14, fontweight='normal', fontproperties='SimHei')  # 增大字体
@@ -1274,7 +1250,10 @@ class VisualizationManager:
                            color=boundary_color, markerfacecolor='white', markeredgewidth=2.5)
                     
                     # 添加边界标签，使用更大的字体
-                    ax1.text(boundary_time, y_pos + y_range * 0.02, boundary['name'], 
+                    boundary_name = boundary['name']
+                    if "降温初始辊" in boundary_name:
+                        boundary_name = "降温"
+                    ax1.text(boundary_time, y_pos + y_range * 0.02, boundary_name, 
                            color=boundary_color, ha='center', fontproperties='SimHei', fontsize=11,  # 增大字体
                            bbox=dict(boxstyle='round,pad=0.4', fc='white', alpha=0.8, edgecolor=boundary_color))  # 增大内边距
                     
