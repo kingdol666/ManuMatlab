@@ -1,0 +1,13 @@
+PyQt6>=6.0.0
+markdown>=3.3.0
+md2pdf>=0.2.0
+reportlab>=3.6.0
+
+# 可选依赖
+# pdfkit>=1.0.0  # 需要安装 wkhtmltopdf
+# weasyprint>=54.0  # 需要安装额外的系统依赖
+
+# 安装说明:
+# 1. 安装基本依赖: pip install -r requirements_direct.txt
+# 2. 如果需要使用pdfkit方法，请下载并安装 wkhtmltopdf: https://wkhtmltopdf.org/
+# 3. 如果需要使用weasyprint方法，请参考: https://weasyprint.readthedocs.io/en/latest/install.html

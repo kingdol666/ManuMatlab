@@ -67,14 +67,14 @@ def create_config_tab(main_window):
     physical_params_layout.addRow("对流换热系数1 (W/(m²·K)):", main_window.alpha1_edit)
     
     main_window.t_kongqi_edit = QDoubleSpinBox()
-    main_window.t_kongqi_edit.setRange(273.15, 400.0)
+    main_window.t_kongqi_edit.setRange(0, 10000.0)
     main_window.t_kongqi_edit.setDecimals(4)
     main_window.t_kongqi_edit.setMinimumWidth(120)
     main_window.t_kongqi_edit.setToolTip("周围空气的温度。")
     physical_params_layout.addRow("空气温度 (K):", main_window.t_kongqi_edit)
     
     main_window.t0_edit = QDoubleSpinBox()
-    main_window.t0_edit.setRange(273.15, 400.0)
+    main_window.t0_edit.setRange(0, 10000.0)
     main_window.t0_edit.setDecimals(4)
     main_window.t0_edit.setMinimumWidth(120)
     main_window.t0_edit.setToolTip("薄膜的初始温度。")

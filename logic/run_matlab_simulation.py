@@ -55,7 +55,7 @@ def load_config():
             "mesh_params": {"H": 0.00082, "L": 0.00082, "Nx": 20, "Ny": 20},
             "main_params": {
                 "k": 0.2, "midu": 1238.0, "Cv": 1450.0, "q": 0.0, "alpha": 25.0,
-                "alpha1": 25.0, "T_kongqi": 293.15, "t": 0.0, "dt": 0.1
+                "alpha1": 25.0, "T_kongqi": 293.15, "T0": 293.15, "t": 0.0, "dt": 0.1
             }
         }
 

@@ -1,0 +1,11 @@
+# Markdown转PDF转换器依赖包
+PyQt6>=6.0.0
+markdown>=3.3.0
+
+# 可选依赖（用于直接PDF转换）
+pdfkit>=1.0.0
+weasyprint>=60.0
+
+# 注意：
+# 1. pdfkit需要安装wkhtmltopdf：https://wkhtmltopdf.org/downloads.html
+# 2. weasyprint需要一些系统依赖，详见：https://doc.courtbouillon.org/weasyprint/stable/first_steps.html
